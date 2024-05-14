@@ -1,0 +1,12 @@
+[
+  {
+    "question": "国家为中国的的用户数？",
+    "answerSQL": "",
+    "answerInsight": "优先使用中文的国家名成"
+  },
+  {
+    "question": "(澳洲站)导出一月 二月 三月 分别在每个月阳光云澳洲站的建站数量，并包含具体机型上线数量",
+    "answerSQL": "",
+    "answerInsight": "期望电站建站时间使用recore_create_time"
+  }
+]
