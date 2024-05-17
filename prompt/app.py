@@ -23,7 +23,7 @@ Scenario = {
             "sg.dwd_dev_power_device_fault_details_d": "'sg.dwd_dev_power_device_fault_details_d'表，包含各个站点中电站出现过的故障信息，是一张事务事实表"
         },
         "table_desc_addition": {
-            "dwd_sungrow.dwd_pub_ps_power_station_d": "查询'dwd_sungrow.dwd_pub_ps_power_station_d'表相关的数据，默认只查询物理设备(is_virtual_unit=0),当用户的问题提及：通讯设备，指的是dev_model_id in (9,22)的设备",
+            "dwd_sungrow.dwd_pub_ps_power_station_d": "查询'dwd_sungrow.dwd_pub_ps_power_station_d'表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是dev_model_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚的'的数据。",
         },
         "join_desc": """1.dwd_sungrow.dwd_pub_ps_dev_power_station_d
 1).主键为ps_key
@@ -50,7 +50,7 @@ Scenario = {
         """,
     "other_common_desc":"""
 请仔细注意：
-1.对于上述提到的任意表，如果表中具有分区字段pt, 则只查询该表中pt为昨天（pt=current_date()-1) 的数据 。
+1.对于上述提到的任意表，如果表中具有分区字段pt, 则只查询该表中pt为昨天（在hive sql中，这样表述： pt=date_sub(current_date()，1)) 的数据 。
 """
     }
 
@@ -72,8 +72,7 @@ RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
               + ". Your task is to understand the database tables if given, and translate human instructions into SQL "
                 "to query that database. I want you to reply with a valid SQL in triple quotes. Do not write "
                 "explanations. All valid human instructions are given in curly braces {like this\}. For any query "
-                "that contains delete or update in SQL, please respond: 'ERROR: You can only read data.'. "
-                "涉及到比率等除法运算时，请将数据类型转换为 float4")
+                "that contains delete or update in SQL, please respond: 'ERROR: You can only read data.'")
 
 OtherPrompt = """在输出时直接输出JSON字符串,不要包裹在Markdown中, 仅生成SELECT语句并且语句默认不要追加分号';'。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
 或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
@@ -147,7 +146,7 @@ for scena_key in Scenario:
         table_prompt.append("\n".join(table_sumary))
         IndicatorsListPrompt.append("\n".join(desc_summary))
         if key in addition:
-            IndicatorsListPrompt.append("\n".join(addition[key]))
+            IndicatorsListPrompt.append(addition[key])
 
     table_prompt.append(scena_item['join_desc'])
     secnario_conf['TablePrompt'] = "\n".join(table_prompt)
@@ -167,5 +166,5 @@ result["Examples"] = {
 result["HardPrompt"] = HardPrompt
 result["ChartPrompt"] = ChartPrompt
 
-with open(f"{os.getcwd()}/prompt_conf/promptConfig.json", mode='w') as f:
+with open(f"{os.getcwd()}/prompt_conf/promptConfig.json", mode='w', encoding="utf-8") as f:
     json.dump(result, f, ensure_ascii=False, indent=3)
