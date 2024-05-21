@@ -23,7 +23,8 @@ Scenario = {
             "sg.dwd_dev_power_device_fault_details_d": "'sg.dwd_dev_power_device_fault_details_d'表，包含各个站点中电站出现过的故障信息，是一张事务事实表"
         },
         "table_desc_addition": {
-            "dwd_sungrow.dwd_pub_ps_power_station_d": "查询'dwd_sungrow.dwd_pub_ps_power_station_d'表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是dev_model_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚的'的数据。",
+            
+            "dwd_sungrow.dwd_pub_ps_power_station_d": "'表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是 dev_type_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚'的数据。而提及澳洲站，并不是指要查询ps_country_name='澳大利亚'的数据，而是is_au=1的数据",
         },
         "join_desc": """1.dwd_sungrow.dwd_pub_ps_dev_power_station_d
 1).主键为ps_key
@@ -50,7 +51,7 @@ Scenario = {
         """,
     "other_common_desc":"""
 请仔细注意：
-1.对于上述提到的任意表，如果表中具有分区字段pt, 则只查询该表中pt为昨天（在hive sql中，这样表述： pt=date_sub(current_date()，1)) 的数据 。
+1.对于上述提到的任意表，如果表中具有分区字段pt, 则添加条件： pt=date_sub(current_date()，1)), 请一定注意pt不是时间或者日期字段。
 """
     }
 
@@ -60,8 +61,8 @@ Scenario = {
 
 
 ScenarioSelectionPrompt = """你现在是一个hive数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
-它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"ERROR: No data for your question.\", 
-如果你认为用户的问题不清楚，请直接返回\"ERROR: The question is not clear.\""""
+它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"错误: 暂时没有与您问题相关的数据.\", 
+如果你认为用户的问题不清楚，请直接返回\"错误: 您的问题我没有太理解，请换一种问法.\""""
 
 descs = [item['desc'] for item in Scenario.values()]
 AllScenariosPrompt = ";".join(descs)
@@ -69,19 +70,19 @@ AllScenariosPrompt = ";".join(descs)
 CommandSQLTemplate = "你要遵循的下面的指令来生成SQL。"
 
 RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
-              + ". Your task is to understand the database tables if given, and translate human instructions into SQL "
+              + ". Your task is to understand the database tables if given, and tpranslate human instructions into SQL "
                 "to query that database. I want you to reply with a valid SQL in triple quotes. Do not write "
-                "explanations. All valid human instructions are given in curly braces {like this\}. For any query "
-                "that contains delete or update in SQL, please respond: 'ERROR: You can only read data.'")
+                "explanations. All valid human instructions are given in curly braces {like this\}. *MUST*For any query "
+                "that contains delete or update in SQL, please respond: '错误: 您不能要求我删除任何数据'")
 
-OtherPrompt = """在输出时直接输出JSON字符串,不要包裹在Markdown中, 仅生成SELECT语句并且语句默认不要追加分号';'。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
+OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
 或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
-的时候你需要注意聊天历史，其中如果有药名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件。注意Hive不支持With
+的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。注意Hive不支持With
 语句，请使用子查询，GroupBy或者其他方式替代。请注意Hive不支持中文列名，所以返回的列名一定要是英文。
-如果问题涉及到时间，但是没有年份信息，请使用今年作为年份<example>三月，则日期是2024-03 </example><example>去年五月，则日期是2023-05</example>。
-注意The following contains the examples for you to follow. You 
+如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。
+注意the following contains the examples for you to follow Strictly. You 
 *MUST* understand it first and generate based on that. If the questions are the same, you MUST use the sql gave in 
-the sample.you MUST use the english as the column name in the return sql"""
+the sample.you MUST use the english as the column name in the return sql,如果你返回的结果不是一个内容不是一个按照我给出例子的json,请给告诉我原因"""
 
 HardPrompt = """1. 请注意, 在生成SQL的时候, 这里有几个追加的要求, 具体如下: 先检查问题的句子成分和含义成分是否清晰, 是否有歧义, 如果不清晰的话要进行扩展, 
 使问题变得清晰。将澄清后的问题输出到'clarify'属性中。你需要一步一步思考, 并对SQL进行解释, 解释部分放在输出的'reasoning'属性中。针对一个问题, 由于SQL可能有不同的写法, 你需要先从不同的角度思考, 
@@ -95,9 +96,9 @@ VARCHAR需要转换成Float类型', 'reasoningFinal': 'reason for final SQL', 'f
 reference sql and the error-check result.', 'columnList': ['column1','column2']}"""
 
 ChartPrompt = """如果SQL查询的结果适合折线图, 请返回需要展示的字段和'LineChartPic, 如果SQL查询的结果适合柱状图, 请返回需要展示的字段和'BarChartPic, 如果SQL查询的结果适合饼图, 
-请返回需要展示的字段和'PieChartPic'。如果都不适合, 请返回\"ERROR: You can only read data.\" 其中'columnList'属性是针对用户问题，图表需要展示的字段，数组形式, 
+请返回需要展示的字段和'PieChartPic'。如果都不适合, 请返回\"错误: 抱歉，数据不适合使用图表进行展示.\" 其中'columnList'属性是针对用户问题，图表需要展示的字段，数组形式, 
 'chartType'属性是图表类型(LineChartPic,PieChartPic), 'finalSQL'属性是查询的SQL, DONNOT add any comment in 'finalSQL', 
-MUST ONLY RETURN JSON OBJECT!"""
+*MUST* ONLY RETURN JSON OBJECT!"""
 
 result = dict()
 result['Overall'] = {
@@ -133,15 +134,18 @@ for scena_key in Scenario:
         desc_summary.append(
             f"表 {key} 除了上述表结构, 生成SQL的时候, value部分还需要参考下面的字段含义和取值:")
         for i in range(len(df)):
-            if df.iloc[i, 0] == "":
+            if  pd.isna(df.iloc[i, 0]) or df.iloc[i, 0] == "":
                 break
             column_desc = f"{df.iloc[i, 0]}:{df.iloc[i, 2]}。"
             if df.iloc[i, 3] == "PRIMARY KEY":
                 column = f"{df.iloc[i, 0]}({df.iloc[i, 1]},{df.iloc[i, 3]}),"
+            elif df.iloc[i, 3]== False or df.iloc[i, 3] == "FALSE" or df.iloc[i, 3] == "False" or df.iloc[i, 3] == "false":
+                continue
             else:
                 column = f"{df.iloc[i, 0]}({df.iloc[i, 1]}),"
-                table_sumary.append(column)
-                desc_summary.append(column_desc)
+
+            table_sumary.append(column)
+            desc_summary.append(column_desc)
 
         table_prompt.append("\n".join(table_sumary))
         IndicatorsListPrompt.append("\n".join(desc_summary))
