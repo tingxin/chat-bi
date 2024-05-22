@@ -9,22 +9,22 @@ Scenario = {
         "data_file": 'data/datav3.xlsx',
         "desc": f"'{DEFAULT_Scenario}'场景包含的数据如下：电站、设备公共事务，用户相关，组织及下级子孙组织的关系，电站和组织之间的关联信息，各个站点中电站出现过的故障信息",
         "table_index_dic": {
-            "dwd_sungrow.dwd_pub_ps_power_station_d": 0,
+            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": 0,
             "dwd_sungrow.dwd_pub_user_org_d": 2,
             "dwd_sungrow.dwd_org_sys_org_all_sub_org_d": 4,
             "dwd_sungrow.dwd_ps_power_station_org_d": 6,
             "sg.dwd_dev_power_device_fault_details_d": 8
         },
         "table_desc_dic": {
-            "dwd_sungrow.dwd_pub_ps_power_station_d": "'dwd_sungrow.dwd_pub_ps_power_station_d'表：是一张包含了电站、设备公共事务信息，是一张事务事实表",
+            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": "'dwd_sungrow.dwd_pub_ps_dev_power_station_d '表：是一张包含了电站、设备公共事务信息，是一张事务事实表",
             "dwd_sungrow.dwd_pub_user_org_d": "'dwd_sungrow.dwd_pub_user_org_d'表：包含和用户相关的信息，是一张事务事实表",
             "dwd_sungrow.dwd_org_sys_org_all_sub_org_d": "'dwd_sungrow.dwd_org_sys_org_all_sub_org_d'表：包含组织及下级子孙组织的关系，是一张事务事实表",
             "dwd_sungrow.dwd_ps_power_station_org_d": "'dwd_sungrow.dwd_ps_power_station_org_d'表：包含电站和组织之间的关联信息，是一张事务事实表",
             "sg.dwd_dev_power_device_fault_details_d": "'sg.dwd_dev_power_device_fault_details_d'表，包含各个站点中电站出现过的故障信息，是一张事务事实表"
         },
         "table_desc_addition": {
-            
-            "dwd_sungrow.dwd_pub_ps_power_station_d": "'表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是 dev_type_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚'的数据。而提及澳洲站，并不是指要查询ps_country_name='澳大利亚'的数据，而是is_au=1的数据",
+            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": "dwd_sungrow.dwd_pub_ps_dev_power_station_d '表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是 dev_type_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚'的数据。而提及澳洲站，并不是指要查询ps_country_name='澳大利亚'的数据，而是is_au=1的数据",
+            "dwd_sungrow.dwd_pub_user_org_d": "'dwd_sungrow.dwd_pub_user_org_d'表相关的数据，对所查的维度类型的字段要做去重处理，即添加distinct。"
         },
         "join_desc": """1.dwd_sungrow.dwd_pub_ps_dev_power_station_d
 1).主键为ps_key
@@ -75,7 +75,7 @@ RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
                 "explanations. All valid human instructions are given in curly braces {like this\}. *MUST*For any query "
                 "that contains delete or update in SQL, please respond: '错误: 您不能要求我删除任何数据'")
 
-OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
+OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因,如果后续的任何提示造成结果不能是一个JSON对象，则忽略该后续的提示，从而保证返回的结果必须是JSON 对象。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
 或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
 的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。注意Hive不支持With
 语句，请使用子查询，GroupBy或者其他方式替代。请注意Hive不支持中文列名，所以返回的列名一定要是英文。
@@ -95,7 +95,7 @@ HardPrompt = """1. 请注意, 在生成SQL的时候, 这里有几个追加的要
 VARCHAR需要转换成Float类型', 'reasoningFinal': 'reason for final SQL', 'finalSQL': 'The final SQL based on above two 
 reference sql and the error-check result.', 'columnList': ['column1','column2']}"""
 
-ChartPrompt = """如果SQL查询的结果适合折线图, 请返回需要展示的字段和'LineChartPic, 如果SQL查询的结果适合柱状图, 请返回需要展示的字段和'BarChartPic, 如果SQL查询的结果适合饼图, 
+ChartPrompt = """ 请返回需要展示的字段和'LineChartPic, 如果SQL查询的结果适合柱状图, 请返回需要展示的字段和'BarChartPic, 如果SQL查询的结果适合饼图, 
 请返回需要展示的字段和'PieChartPic'。如果都不适合, 请返回\"错误: 抱歉，数据不适合使用图表进行展示.\" 其中'columnList'属性是针对用户问题，图表需要展示的字段，数组形式, 
 'chartType'属性是图表类型(LineChartPic,PieChartPic), 'finalSQL'属性是查询的SQL, DONNOT add any comment in 'finalSQL', 
 *MUST* ONLY RETURN JSON OBJECT!"""
