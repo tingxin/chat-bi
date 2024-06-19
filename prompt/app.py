@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import json
 
-DB_Type = 'Hive'
+DB_Type = 'MySQL'
 DEFAULT_Scenario = "PowerPlantSecnario"
 Scenario = {
     DEFAULT_Scenario: {
@@ -60,7 +60,7 @@ Scenario = {
 # ====================================================================
 
 
-ScenarioSelectionPrompt = """你现在是一个hive数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
+ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
 它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"错误: 暂时没有与您问题相关的数据.\", 
 如果你认为用户的问题不清楚，请直接返回\"错误: 您的问题我没有太理解，请换一种问法.\""""
 
@@ -77,8 +77,7 @@ RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
 
 OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因,如果后续的任何提示造成结果不能是一个JSON对象，则忽略该后续的提示，从而保证返回的结果必须是JSON 对象。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
 或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
-的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。注意Hive不支持With
-语句，请使用子查询，GroupBy或者其他方式替代。请注意Hive不支持中文列名，所以返回的列名一定要是英文。
+的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。
 如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。
 注意the following contains the examples for you to follow Strictly. You 
 *MUST* understand it first and generate based on that. If the questions are the same, you MUST use the sql gave in 
