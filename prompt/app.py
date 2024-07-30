@@ -3,39 +3,12 @@ import os
 import json
 
 DB_Type = 'MySQL'
-DEFAULT_Scenario = "Business"
-Scenario = {
-    DEFAULT_Scenario: {
-        "data_file": 'data/rawdata.xlsx',
-        "desc": f"'{DEFAULT_Scenario}'场景包含的数据如下：订单明细（order_detail表）、用户信息(user表)，商品信息(goods表)",
-        "table_index_dic": {
-            "business.order_detail": 0,
-            "business.user": 1,
-            "business.goods": 2
-        },
-        "table_desc_dic": {
-            "business.order_detail": "'business.order_detail'表：包含了订单的明细信息。",
-            "business.user": "'business.user'表：包含了用户详细信息。",
-            "business.goods": "'business.goods'表：包含商品的详细信息。"
-        },
-        "table_desc_addition": {
-            "business.order_detail": "business.order_detail'表中的user_mail字段可以做为用户名",
-        },
-        "join_desc": "",
-    "other_common_desc":""
-    }
-
-}
-
-# ====================================================================
+DEFAULT_Scenario = "power_station"
 
 
-ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表，根据用户的问题，返回对应场景的名字,
+ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
 它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"错误: 暂时没有与您问题相关的数据.\", 
 如果你认为用户的问题不清楚，请直接返回\"错误: 您的问题我没有太理解，请换一种问法.\""""
-
-descs = [item['desc'] for item in Scenario.values()]
-AllScenariosPrompt = ";".join(descs)
 
 CommandSQLTemplate = "你要遵循的下面的指令来生成SQL。"
 
@@ -70,6 +43,7 @@ ChartPrompt = """ 请返回需要展示的字段和'LineChartPic, 如果SQL查�
 *MUST* ONLY RETURN JSON OBJECT!"""
 
 result = dict()
+AllScenariosPrompt = list()
 result['Overall'] = {
     "ScenarioSelectionPrompt": ScenarioSelectionPrompt,
     "AllScenariosPrompt": AllScenariosPrompt,
@@ -77,68 +51,91 @@ result['Overall'] = {
 }
 
 
-for scena_key in Scenario:
-    scena_item = Scenario[scena_key]
-    table_index_dic = scena_item['table_index_dic']
-    table_desc_dic = scena_item['table_desc_dic']
-    file_path = scena_item['data_file']
 
-    secnario_conf = dict()
-    secnario_conf['RolePrompt'] = RolePrompt
-    addition = scena_item['table_desc_addition']
+def run():
+    directory = 'data'
+    files_and_folders = os.listdir(directory)
+    docs = [f"{directory}/{item}" for item in files_and_folders if item.endswith(".xlsx") or item.endswith(".csv")]
 
-    table_prompt = list()
-    IndicatorsListPrompt = list()
 
-    for key in table_index_dic:
-        table_dict = dict()
-        sheet_index = table_index_dic[key]
-        df = pd.read_excel(file_path, sheet_name=sheet_index)
+    for doc in docs:
+        xls = pd.ExcelFile(doc)
+        sheet_names = xls.sheet_names
 
-        df = df.iloc[1:, 0:5]
+        df_summary = pd.read_excel(doc, sheet_name=0, header=None)
+        secnario_name = df_summary.iloc[0, 1]
+        secnario_desc = df_summary.iloc[1, 1]
+        secnario_query_rule = df_summary.iloc[2, 1]
+        secnario_join_rule = df_summary.iloc[3, 1]
 
-        table_sumary = list()
-        desc_summary = list()
-        table_sumary.append(f"现有一张存储在{DB_Type}上的表, {table_desc_dic[key]},DDL 如下：\n")
-        desc_summary.append(
-            f"表 {key} 除了上述表结构, 生成SQL的时候, value部分还需要参考下面的字段含义和取值:")
-        for i in range(len(df)):
-            if  pd.isna(df.iloc[i, 0]) or df.iloc[i, 0] == "":
-                break
-            column_desc = f"<column>{df.iloc[i, 0]}:{df.iloc[i, 2]}。{df.iloc[i, 4]}</column>"
-            if df.iloc[i, 3] == "PRIMARY KEY":
-                column = f"{df.iloc[i, 0]}({df.iloc[i, 1]},{df.iloc[i, 3]}),"
-            elif df.iloc[i, 3]== False or df.iloc[i, 3] == "FALSE" or df.iloc[i, 3] == "False" or df.iloc[i, 3] == "false":
-                continue
-            else:
-                column = f"{df.iloc[i, 0]}({df.iloc[i, 1]}),"
+        AllScenariosPrompt.append(f"<{secnario_name}>{secnario_desc}<{secnario_name}/>")
 
-            table_sumary.append(column)
-            desc_summary.append(column_desc)
+        secnario_conf = dict()
 
-        table_sumary_str="\n".join(table_sumary)
-        table_prompt.append(f"<{key}>{table_sumary_str}</{key}>")
-        IndicatorsListPrompt.append("\n".join(desc_summary))
-        if key in addition:
-            IndicatorsListPrompt.append(f"<{key}>{addition[key]}</{key}>")
+        secnario_conf['RolePrompt'] = RolePrompt
+        result[secnario_name] = secnario_conf
 
-    table_prompt.append(scena_item['join_desc'])
-    secnario_conf['TablePrompt'] = "\n".join(table_prompt)
 
-    IndicatorsListPrompt.append(scena_item['other_common_desc'])
-    secnario_conf['IndicatorsListPrompt'] = "\n".join(IndicatorsListPrompt)
-    secnario_conf['OtherPrompt'] = OtherPrompt
+        table_prompt = list()
+        IndicatorsListPrompt = list()
+        for index in range(1, len(sheet_names)):
+            sheet_name = sheet_names[index]
+            df_tb = pd.read_excel(doc, sheet_name=sheet_name, header=None)
+            table_name = df_tb.iloc[0, 1]
+            table_desc = df_tb.iloc[1, 1]
+            table_query_rule = df_tb.iloc[2, 1]
 
-    result[scena_key] = secnario_conf
+            ddl_sumary = list()
+            desc_summary = list()
+            ddl_sumary.append(f"<{table_name}>{table_name}：{table_desc}，DDL 如下：\n")
+            desc_summary.append(
+                f"<{table_name}>表 {table_name} 除了上述表结构, 生成SQL的时候, value部分还需要参考下面的字段含义和取值:")
+            
+            for i in range(3, len(df_tb)):
+                if  pd.isna(df_tb.iloc[i, 0]) or df_tb.iloc[i, 0] == "":
+                    break
 
-result["Examples"] = {
-    "query": "示例问题",
-    "finalSQL": "返回的SQL",
-    "chartType": "BarChartPic",
-    "columnList": ["列名A", "列名B"]
-}
-result["HardPrompt"] = HardPrompt
-result["ChartPrompt"] = ChartPrompt
+                if pd.isna(df_tb.iloc[i, 5]) or df_tb.iloc[i, 5] == "" :
+                    column_desc = f"<{df_tb.iloc[i, 0]}>{df_tb.iloc[i, 0]}属于{df_tb.iloc[i, 2]},它的含义是{df_tb.iloc[i, 4]}</{df_tb.iloc[i, 0]}>"
+                else:
+                    column_desc = f"<{df_tb.iloc[i, 0]}>{df_tb.iloc[i, 0]}属于{df_tb.iloc[i, 2]},它的含义是{df_tb.iloc[i, 4]},{df_tb.iloc[i, 5]}</{df_tb.iloc[i, 0]}>"
+                
+                if df_tb.iloc[i, 3] == "PRIMARY KEY":
+                    column = f"{df_tb.iloc[i, 0]}({df_tb.iloc[i, 1]},{df_tb.iloc[i, 3]}),"
+                elif df_tb.iloc[i, 3]== False or df_tb.iloc[i, 3] == "FALSE" or df_tb.iloc[i, 3] == "False" or df_tb.iloc[i, 3] == "false":
+                    continue
+                else:
+                    column = f"{df_tb.iloc[i, 0]}({df_tb.iloc[i, 1]}),"
 
-with open(f"{os.getcwd()}/prompt_conf/promptConfig.json", mode='w', encoding="utf-8") as f:
-    json.dump(result, f, ensure_ascii=False, indent=3)
+                ddl_sumary.append(column)
+                desc_summary.append(column_desc)
+
+            ddl_sumary.append(f"</{table_name}>")
+
+            desc_summary.append(f"<{table_name}_rule>*MUST*还要遵循规则：{table_query_rule}</{table_name}_rule>")
+            desc_summary.append(f"</{table_name}>")
+
+            table_prompt.append("\n".join(ddl_sumary))
+            IndicatorsListPrompt.append("\n".join(desc_summary))
+
+        table_prompt.append(f"<join>表与表之间的关联关系如下：{secnario_join_rule}</join>")
+        secnario_conf['TablePrompt'] = "\n".join(table_prompt)
+
+        IndicatorsListPrompt.append(f"<common_rule>{secnario_query_rule}</common_rule>")
+        secnario_conf['IndicatorsListPrompt'] = "\n".join(IndicatorsListPrompt)
+        secnario_conf['OtherPrompt'] = OtherPrompt
+
+
+    result["Examples"] = {
+        "query": "示例问题",
+        "finalSQL": "返回的SQL",
+        "chartType": "BarChartPic",
+        "columnList": ["列名A", "列名B"]
+    }
+    result["HardPrompt"] = HardPrompt
+    result["ChartPrompt"] = ChartPrompt
+
+    with open(f"{os.getcwd()}/prompt_conf/promptConfig.json", mode='w', encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=3)
+
+run()
