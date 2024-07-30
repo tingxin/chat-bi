@@ -8,7 +8,9 @@
 pip install -r requirement.txt
 
 ```
-2. 按照约定的数据格式，把数据文件放在data文件夹下
+
+2. 参考prompt/data文件下的rawdata.xlsx，描述你的数据
+
 
 
 3. 修改app.py代码中的 Scenario 字典对象
@@ -18,9 +20,10 @@ pip install -r requirement.txt
 ```
 python3 app.py
 ```
-生成的提示词文件在prompt_conf文件夹下
+2. 生成的提示词文件在prompt_conf文件夹下。
 
-2. 讲提示词文件全部放入约定好的s3 bucket中 （sungrow-text2sql-prompt）
+3. 查看根目录下的.env文件，将生成的提示词文件放入.env文件中指定的s3 bucket
+
 
 
 
