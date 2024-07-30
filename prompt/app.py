@@ -3,56 +3,26 @@ import os
 import json
 
 DB_Type = 'MySQL'
-DEFAULT_Scenario = "PowerPlantSecnario"
+DEFAULT_Scenario = "Business"
 Scenario = {
     DEFAULT_Scenario: {
-        "data_file": 'data/datav3.xlsx',
-        "desc": f"'{DEFAULT_Scenario}'场景包含的数据如下：电站、设备公共事务，用户相关，组织及下级子孙组织的关系，电站和组织之间的关联信息，各个站点中电站出现过的故障信息",
+        "data_file": 'data/rawdata.xlsx',
+        "desc": f"'{DEFAULT_Scenario}'场景包含的数据如下：订单明细（order_detail表）、用户信息(user表)，商品信息(goods表)",
         "table_index_dic": {
-            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": 0,
-            "dwd_sungrow.dwd_pub_user_org_d": 2,
-            "dwd_sungrow.dwd_org_sys_org_all_sub_org_d": 4,
-            "dwd_sungrow.dwd_ps_power_station_org_d": 6,
-            "sg.dwd_dev_power_device_fault_details_d": 8
+            "business.order_detail": 0,
+            "business.user": 1,
+            "business.goods": 2
         },
         "table_desc_dic": {
-            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": "'dwd_sungrow.dwd_pub_ps_dev_power_station_d '表：是一张包含了电站、设备公共事务信息，是一张事务事实表",
-            "dwd_sungrow.dwd_pub_user_org_d": "'dwd_sungrow.dwd_pub_user_org_d'表：包含和用户相关的信息，是一张事务事实表",
-            "dwd_sungrow.dwd_org_sys_org_all_sub_org_d": "'dwd_sungrow.dwd_org_sys_org_all_sub_org_d'表：包含组织及下级子孙组织的关系，是一张事务事实表",
-            "dwd_sungrow.dwd_ps_power_station_org_d": "'dwd_sungrow.dwd_ps_power_station_org_d'表：包含电站和组织之间的关联信息，是一张事务事实表",
-            "sg.dwd_dev_power_device_fault_details_d": "'sg.dwd_dev_power_device_fault_details_d'表，包含各个站点中电站出现过的故障信息，是一张事务事实表"
+            "business.order_detail": "'business.order_detail'表：包含了订单的明细信息。",
+            "business.user": "'business.user'表：包含了用户详细信息。",
+            "business.goods": "'business.goods'表：包含商品的详细信息。"
         },
         "table_desc_addition": {
-            "dwd_sungrow.dwd_pub_ps_dev_power_station_d ": "dwd_sungrow.dwd_pub_ps_dev_power_station_d '表相关的数据，默认只查询物理设备(is_virtual_unit=0)，默认只查询is_au=1,当用户的问题提及：通讯设备，指的是 dev_type_id in (9,22)的设备, 提及澳大利亚，是指澳大利亚代表国家，需要ps_country_name='澳大利亚'的数据。而提及澳洲站，并不是指要查询ps_country_name='澳大利亚'的数据，而是is_au=1的数据",
-            "dwd_sungrow.dwd_pub_user_org_d": "'dwd_sungrow.dwd_pub_user_org_d'表相关的数据，对所查的维度类型的字段要做去重处理，即添加distinct。"
+            "business.order_detail": "business.order_detail'表中的user_mail字段可以做为用户名",
         },
-        "join_desc": """1.dwd_sungrow.dwd_pub_ps_dev_power_station_d
-1).主键为ps_key
-2)外键ps_id与dwd_sungrow.dwd_ps_power_station_org_d）的ps_id关联
-3)外键ps_key与sg.dwd_dev_power_device_fault_details_d的ps_key关联
-
-2.dwd_sungrow.dwd_pub_user_org_d 
-1）主键为（user_id和org_id作为联合主键）
-2）外键org_id与dwd_sungrow.dwd_org_sys_org_all_sub_org_d的org_id关联
-
-3.dwd_sungrow.dwd_org_sys_org_all_sub_org_d 
-1)主键：id
-2)外键org_id和dwd_sungrow.dwd_pub_user_org_d的org_id关联
-3)外键sub_org_id和dwd_sungrow.dwd_ps_power_station_org_d的org_id关联
-
-4.dwd_sungrow.dwd_ps_power_station_org_d 
-1)主键：id
-2)外键ps_id和dwd_sungrow.dwd_pub_ps_dev_power_station_d的ps_id关联
-3)外键org_id和dwd_sungrow.dwd_org_sys_org_all_sub_org_d的sub_org_id关联
-
-5.sg.dwd_dev_power_device_fault_details_d 
-1)主键为（ps_key,fault_time,big_fault,small_fault作为联合主键）
-2)外键ps_key和dwd_sungrow.dwd_pub_ps_dev_power_station_d的ps_key关联
-        """,
-    "other_common_desc":"""
-请仔细注意：
-1.对于上述提到的任意表，如果表中具有分区字段pt, 则添加条件： pt=date_sub(current_date()，1)), 请一定注意pt不是时间或者日期字段。
-"""
+        "join_desc": "",
+    "other_common_desc":""
     }
 
 }
@@ -60,7 +30,7 @@ Scenario = {
 # ====================================================================
 
 
-ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
+ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表，根据用户的问题，返回对应场景的名字,
 它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"错误: 暂时没有与您问题相关的数据.\", 
 如果你认为用户的问题不清楚，请直接返回\"错误: 您的问题我没有太理解，请换一种问法.\""""
 
@@ -125,7 +95,7 @@ for scena_key in Scenario:
         sheet_index = table_index_dic[key]
         df = pd.read_excel(file_path, sheet_name=sheet_index)
 
-        df = df.iloc[1: -1, 0:4]
+        df = df.iloc[1:, 0:5]
 
         table_sumary = list()
         desc_summary = list()
@@ -135,7 +105,7 @@ for scena_key in Scenario:
         for i in range(len(df)):
             if  pd.isna(df.iloc[i, 0]) or df.iloc[i, 0] == "":
                 break
-            column_desc = f"{df.iloc[i, 0]}:{df.iloc[i, 2]}。"
+            column_desc = f"<column>{df.iloc[i, 0]}:{df.iloc[i, 2]}。{df.iloc[i, 4]}</column>"
             if df.iloc[i, 3] == "PRIMARY KEY":
                 column = f"{df.iloc[i, 0]}({df.iloc[i, 1]},{df.iloc[i, 3]}),"
             elif df.iloc[i, 3]== False or df.iloc[i, 3] == "FALSE" or df.iloc[i, 3] == "False" or df.iloc[i, 3] == "false":
@@ -146,10 +116,11 @@ for scena_key in Scenario:
             table_sumary.append(column)
             desc_summary.append(column_desc)
 
-        table_prompt.append("\n".join(table_sumary))
+        table_sumary_str="\n".join(table_sumary)
+        table_prompt.append(f"<{key}>{table_sumary_str}</{key}>")
         IndicatorsListPrompt.append("\n".join(desc_summary))
         if key in addition:
-            IndicatorsListPrompt.append(addition[key])
+            IndicatorsListPrompt.append(f"<{key}>{addition[key]}</{key}>")
 
     table_prompt.append(scena_item['join_desc'])
     secnario_conf['TablePrompt'] = "\n".join(table_prompt)

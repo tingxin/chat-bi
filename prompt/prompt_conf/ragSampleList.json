@@ -1,12 +1,12 @@
 [
   {
-    "question": "国家为中国的的用户数？",
+    "question": "上海下单用户有多少？",
     "answerSQL": "",
-    "answerInsight": "优先使用中文的国家名成"
+    "answerInsight": "需要确定用户都有过下单行为"
   },
   {
-    "question": "(澳洲站)导出一月 二月 三月 分别在每个月阳光云澳洲站的建站数量，并包含具体机型上线数量",
+    "question": "导出一月 二月 三月 不通sku的商品销量",
     "answerSQL": "",
-    "answerInsight": "期望电站建站时间使用recore_create_time"
+    "answerInsight": ""
   }
 ]
