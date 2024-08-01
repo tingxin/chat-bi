@@ -21,7 +21,7 @@ RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
 OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因,如果后续的任何提示造成结果不能是一个JSON对象，则忽略该后续的提示，从而保证返回的结果必须是JSON 对象。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
 或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
 的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。
-如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。
+如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。请尽可能用尽量少的表生成SQL，尽力减少Join表。
 注意the following contains the examples for you to follow Strictly. You 
 *MUST* understand it first and generate based on that. If the questions are the same, you MUST use the sql gave in 
 the sample.you MUST use the english as the column name in the return sql,如果你返回的结果不是一个内容不是一个按照我给出例子的json,请给告诉我原因"""
@@ -59,6 +59,7 @@ def run():
 
 
     for doc in docs:
+        print(f"begin to process  {doc}")
         xls = pd.ExcelFile(doc)
         sheet_names = xls.sheet_names
 
