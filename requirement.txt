@@ -1,0 +1,6 @@
+boto3
+faiss-cpu
+pymysql
+request
+flask_restful
+flask

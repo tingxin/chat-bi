@@ -433,10 +433,10 @@ const Home = ({
       }}
     >
       <Head>
-        <title>Test to sql</title>
+        <title>生成式BI</title>
         <meta
           name="description"
-          content="Test to sql, a tool for converting natural language into SQL, powered by aws bedrock."
+          content="text to sql, a tool for converting natural language into SQL, powered by aws bedrock."
         />
         <meta
           name="viewport"

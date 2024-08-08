@@ -40,3 +40,5 @@ next-env.d.ts
 pnpm-lock.yaml
 
 prompt/data/*
+server/__pycache__/*
+server/db/__pycache__/*

@@ -11,6 +11,10 @@
 docker build -t text2sql .
 
 docker run --env-file=.env -p 5017:8900  --name textdemo1 text2sql
+
+
+docker run --env-file=.env -p 5017:8900 --nam text2sql_dev
+
 ```
 
 使用浏览器打开
