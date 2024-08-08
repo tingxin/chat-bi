@@ -12,6 +12,7 @@ from . import aws
 from . import prompt_conf
 from . import sql
 from .db import mysql
+from uuid import uuid4
 
 
 class Helper:
@@ -91,17 +92,18 @@ class Helper:
         if len(columns) < 1:
             return chartData
 
-        index = 0
-        for row in rows:
-            if index > max_row:
-                break
+        try:
+            index = 0
+            for row in rows:
+                if index > max_row:
+                    break
 
-            items = [item for item in row]
-            entity_name[index] = items[0]
-            index_value[index] = float(items[-1])
-            index+=1
-
-        return chartData, index
+                items = [item for item in row]
+                entity_name[index] = items[0]
+                index_value[index] = float(items[-1])
+                index+=1
+        finally:
+            return chartData, index
 
 
 
@@ -147,10 +149,10 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
         index +=1
 
-    # 打印Markdown格式的数据
-    print(md_table)
     chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
-    print(chart_data)
+
+
+
 
     result = {
         "content":"\n",
@@ -158,8 +160,16 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         "chartData":chart_data if chart_row_count > 1 else dict(),
         "sql":fmt_sql,
         "chartType":bedrock_result['chart_type'],
-        "addition":""
     }
+
+    if row_count > max_row_return:
+        bucket_name = os.getenv("BUCKET_NAME")
+        load_url =  aws.upload_csv_to_s3(headers, rows, bucket_name, str(uuid4()))
+
+        result['extra'] = f"由于数据量较大，当前只显示{max_row_return}行，全量数据请点击如下链接下载：\n{load_url}\n"
+
+    print(result)
+
     return result
 
 
