@@ -6,7 +6,6 @@ import os
 import requests
 from server import api as service
 import json
-from uuid import uuid4
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -41,8 +40,9 @@ class QueryLLM(Resource):
     def post(self):
         # 接收 JSON 数据
         json_data = request.get_json()
-        trace_id = str(uuid4())
-        data = service.get_result(json_data, trace_id, 'bedrock-hard')
+        mtype = request.args.get('mtype', '')
+        trace_id = request.headers.get('X-Trace-Id')
+        data = service.get_result(json_data, trace_id, mtype)
         return data, 200
 
 # 将资源添加到API端点
@@ -53,7 +53,9 @@ api.add_resource(HelloWorld, '/')
 
 
 if __name__ == '__main__':
-    server_host = os.getenv("SERVER_HOST","127.0.0.1:5020")
+    server_host = os.getenv("SERVER_HOST","http://127.0.0.1:5020")
+    index = server_host.find("://")
+    server_host = server_host[index+3:]
     parts = server_host.split(":")
     host = parts[0]
     port = int(parts[1])

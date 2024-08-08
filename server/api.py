@@ -71,6 +71,7 @@ class Helper:
             "content": '哎呀，我思路有点乱，请重新问一次，多个点提示吧！'
         }
 
+    @staticmethod
     def bad_final_response()->dict:
         return {
           "content": '哎呀，我思路有点乱，请重提问，多个点提示吧！',
@@ -78,6 +79,32 @@ class Helper:
           "chartData": '',
           "sql": '',
         }
+
+    @staticmethod
+    def mk_chart_data(columns, rows, max_row=50)->dict:
+        entity_name = dict()
+        index_value = dict()
+        chartData = dict()
+
+        chartData['entity_name'] = entity_name
+        chartData['index_value'] = index_value
+        if len(columns) < 1:
+            return chartData
+
+        index = 0
+        for row in rows:
+            if index > max_row:
+                break
+
+            items = [item for item in row]
+            entity_name[index] = items[0]
+            index_value[index] = float(items[-1])
+            index+=1
+
+        return chartData, index
+
+
+
         
 
     
@@ -97,9 +124,44 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     # 默认查询澳洲站，后续要改
     db_info = conf.get_mysql_conf("au")
     conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
-    rows = mysql.fetch(fmt_sql, conn)
-    for item in rows:
-        print(item)
+    rows, row_count = mysql.fetch(fmt_sql, conn)
+
+    max_row_return = int(os.getenv("MAX_ROW_COUNT_RETURN", "50"))
+
+
+    headers = bedrock_result['bedrockColumn']
+
+    # 开始构建Markdown表格
+    md_table = "| " + " | ".join(headers) + " |\n"
+
+    # 添加分隔线
+    md_table += "| " + " | ".join(["---" for _ in headers]) + " |\n"
+
+    # 添加查询结果
+    index = 0
+    for row in rows:
+        if index > max_row_return:
+            break
+        md_row = "| " + " | ".join([str(element) for element in row]) + " |"
+        md_table += md_row + "\n"
+
+        index +=1
+
+    # 打印Markdown格式的数据
+    print(md_table)
+    chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
+    print(chart_data)
+
+    result = {
+        "content":"\n",
+        "mdData":md_table,
+        "chartData":chart_data if chart_row_count > 1 else dict(),
+        "sql":fmt_sql,
+        "chartType":bedrock_result['chart_type'],
+        "addition":""
+    }
+    return result
+
 
 
 
@@ -178,7 +240,8 @@ def answer(
     result_j = {
       "bedrockSQL": parsed['finalSQL'],
       "queryTableName": scenario,
-      "bedrockColumn": columns
+      "bedrockColumn": columns,
+      "chart_type": parsed['chartType']
     }
     if is_hard_mode:
         result_j["reasoningFinal"] =parsed["reasoningFinal"]

@@ -37,7 +37,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       'X-Trace-Id': requestId,
       'Content-Type': 'application/json'
     };
-    const response = await http.post("/queryllm?modelType=modelType", messages, { headers });
+    const response = await http.post(`/queryllm?mtype=${modelType}`, messages, { headers });
     console.log('answer data >>> ', response.data);
     res.status(200).json(response.data);
 

@@ -7,8 +7,7 @@ def get_conn(host,port,user, pwd, db_name):
                                  port=port,
                                  user=user,
                                  password=pwd,
-                                 database=db_name,
-                                 cursorclass=pymysql.cursors.DictCursor)
+                                 database=db_name)
     return connection
 
 
@@ -34,4 +33,4 @@ def fetch(sql: str, conn):
         cursor.execute(sql)
         conn.commit()
         t = cursor.fetchall()
-        return t
+        return t, cursor.rowcount
