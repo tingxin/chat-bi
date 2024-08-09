@@ -7,7 +7,7 @@ from . import aws
 _prompt_cache = dict()
 
 # 从 S3 读取 JSON 文件
-def read_json_from_s3(s3_client, bucket, key):
+def read_conf_from_s3(s3_client, bucket, key):
     try:
         response = s3_client.get_object(Bucket=bucket, Key=key)
         file_content = response['Body'].read().decode('utf-8')
@@ -18,7 +18,7 @@ def read_json_from_s3(s3_client, bucket, key):
         print(f"An error occurred: {e}")
         return None
 
-def get(file_key):
+def get(file_key)->dict:
     if len(_prompt_cache) != 0:
         return _prompt_cache[file_key]
 
@@ -33,7 +33,7 @@ def get(file_key):
 
     for item in ['EXAMPLE_FILE_NAME', 'PROMPT_FILE_NAME', 'RAG_FILE_NAME']:
         key = os.environ[item]
-        json_data = read_json_from_s3(s3_client, bucket_name, key)
+        json_data = read_conf_from_s3(s3_client, bucket_name, key)
         _prompt_cache[item] =json_data
 
     return _prompt_cache[file_key]

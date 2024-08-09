@@ -9,10 +9,14 @@ import re
 from . import llm
 from . import conf
 from . import aws
-from . import prompt_conf
+from . import prompt
 from . import sql
 from .db import mysql
 from uuid import uuid4
+import threading
+from queue import Queue
+from pandas import DataFrame
+
 
 
 class Helper:
@@ -105,15 +109,97 @@ class Helper:
         finally:
             return chartData, index
 
-
-
         
-
+        
+        
     
+    @staticmethod
+    def query_db(db_info:dict, fmt_sql:str):
+        print(f"=======================>正在查询{db_info['desc']}的数据")
+        conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
+        rows, row_count = mysql.fetch(fmt_sql, conn)
+        return {
+            "rows":rows,
+            "row_count":row_count,
+            "desc":db_info["desc"]
+        }
+
+    @staticmethod
+    def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
+        print(f"=======================>正在查询{db_info['desc']}的数据")
+        conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
+        rows, row_count = mysql.fetch(fmt_sql, conn)
+        r = {
+            "rows":rows,
+            "row_count":row_count,
+            "desc":db_info["desc"]
+        }
+        result_queue.put(r)
+
+    @staticmethod
+    def query_many_db(db_infos:list, fmt_sql:str)->list:
+        threads = []
+        result_queue = Queue()
+        for db_info in db_infos:
+            # 从连接池获取连接
+            thread = threading.Thread(target=Helper.query_db_async, args=(db_info, fmt_sql, result_queue))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        db_results = list()
+        while not result_queue.empty():
+            db_result = result_queue.get()
+            db_results.append(db_result)
+        
+        return db_results
+
+    @staticmethod
+    def mk_md_table(headers:list, db_results:list, max_row_return:int):
+
+        if len(db_results) > 1:
+            headers.insert(0, "站点")
+
+        # 开始构建Markdown表格
+        md_table = "| " + " | ".join(headers) + " |\n"
+
+        # 添加分隔线
+        md_table += "| " + " | ".join(["---" for _ in headers]) + " |\n"
+
+
+        if len(db_results) > 1:
+            # 如果是多个数据源返回的数据，则添加站点信息
+            index = 0
+            for db_result in db_results:
+                if index > max_row_return:
+                    break
+                
+                rows, row_count,desc = db_result["rows"], db_result["row_count"],db_result["desc"]
+                for row in rows:
+                    if index > max_row_return:
+                        break
+
+                    md_row = f"| {desc} | " + " | ".join([str(element) for element in row]) + " |"
+                    md_table += md_row + "\n"
+
+                    index +=1
+        else:
+            rows, row_count,desc = db_result["rows"], db_result["row_count"],db_result["desc"]
+            for row in rows:
+                if index > max_row_return:
+                    break
+                md_row = "| " + " | ".join([str(element) for element in row]) + " |"
+                md_table += md_row + "\n"
+
+                index +=1
+
+        return md_table
 
 
 def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
-    prompt_content = prompt_conf.get("PROMPT_FILE_NAME")
+    prompt_content = prompt.get("PROMPT_FILE_NAME")
     is_hard = mode_type == "bedrock-hard"
     bedrock_result =  answer(msg, prompt_content, trace_id, is_hard)
 
@@ -123,35 +209,30 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
     print(f"{trace_id}========================>fmt sql is {fmt_sql}")
 
-    # 默认查询澳洲站，后续要改
-    db_info = conf.get_mysql_conf("au")
-    conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
-    rows, row_count = mysql.fetch(fmt_sql, conn)
+    last_item = msg[-1]
+    raw_content = last_item['content']
 
     max_row_return = int(os.getenv("MAX_ROW_COUNT_RETURN", "50"))
 
+    db_infos = conf.get_mysql_conf_by_question(raw_content)
+    
+
+    if len(db_infos) == 1:
+        db_info = db_infos[0]
+        db_result =Helper.query_db(db_info, fmt_sql)
+        db_results=[db_result]
+    else:
+        db_results= Helper.query_many_db(db_infos, fmt_sql)
+
 
     headers = bedrock_result['bedrockColumn']
+    md_table = Helper.mk_md_table(headers, db_results, max_row_return)
 
-    # 开始构建Markdown表格
-    md_table = "| " + " | ".join(headers) + " |\n"
-
-    # 添加分隔线
-    md_table += "| " + " | ".join(["---" for _ in headers]) + " |\n"
-
-    # 添加查询结果
-    index = 0
-    for row in rows:
-        if index > max_row_return:
-            break
-        md_row = "| " + " | ".join([str(element) for element in row]) + " |"
-        md_table += md_row + "\n"
-
-        index +=1
-
-    chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
-
-
+    if len(db_results) ==1:
+        rows = db_results[0]["rows"]
+        chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
+    else:
+        chart_data, chart_row_count = dict(),0
 
 
     result = {
@@ -162,9 +243,11 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         "chartType":bedrock_result['chart_type'],
     }
 
-    if row_count > max_row_return:
+    total_row_count = sum([item["row_count"] for item in db_results])
+    if total_row_count > max_row_return:
+        # 数据量太大，则保存到s3，生成下载链接让客户后台下载
         bucket_name = os.getenv("BUCKET_NAME")
-        load_url =  aws.upload_csv_to_s3(headers, rows, bucket_name, str(uuid4()))
+        load_url =  aws.upload_csv_to_s3(headers, db_results, bucket_name, str(uuid4()))
 
         result['extra'] = f"由于数据量较大，当前只显示{max_row_return}行，全量数据请点击如下链接下载：\n{load_url}\n"
 

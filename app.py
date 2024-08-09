@@ -1,7 +1,7 @@
 from flask import Flask,request,jsonify
 from flask_restful import Resource, Api
 import boto3
-from server import conf, prompt_conf
+from server import conf, prompt
 import os
 import requests
 from server import api as service
