@@ -168,10 +168,10 @@ class Helper:
         # 添加分隔线
         md_table += "| " + " | ".join(["---" for _ in headers]) + " |\n"
 
-
+        index = 0
         if len(db_results) > 1:
             # 如果是多个数据源返回的数据，则添加站点信息
-            index = 0
+            
             for db_result in db_results:
                 if index > max_row_return:
                     break
@@ -186,6 +186,7 @@ class Helper:
 
                     index +=1
         else:
+            db_result = db_results[0]
             rows, row_count,desc = db_result["rows"], db_result["row_count"],db_result["desc"]
             for row in rows:
                 if index > max_row_return:

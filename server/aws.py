@@ -52,7 +52,7 @@ def upload_csv_to_s3(columns, db_results, bucket_name, file_name):
 
     else:
         writer.writerow(columns)
-        rows,desc = db_results[0]["rows"]
+        rows = db_results[0]["rows"]
         for row in rows:
             items = [item for item in row]
             writer.writerow(items)
