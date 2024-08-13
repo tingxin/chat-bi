@@ -1,4 +1,4 @@
-import boto3
+import boto3  
 import csv
 import io
 from datetime import datetime, timedelta
@@ -29,7 +29,53 @@ def get(service_name:str):
 
 
 
-def upload_csv_to_s3(columns, db_results, bucket_name, file_name):
+  
+def upload_file_to_s3(file_name, bucket_name, object_name=None):  
+    """  
+    上传文件到S3  
+  
+    :param file_name: 要上传的文件的路径  
+    :param bucket_name: S3桶的名称  
+    :param object_name: 上传到S3的对象名称。如果未指定，则使用文件名  
+    :return: None  
+    """  
+    # 如果S3对象名称未指定，使用文件名  
+    if object_name is None:  
+        object_name = file_name  
+  
+    # 创建S3资源  
+    s3_client = get("s3")
+
+    try:  
+        # 上传文件  
+        s3_client.upload_file(file_name, bucket_name, object_name)  
+        print(f"文件 {file_name} 已成功上传到S3桶 {bucket_name} 中，对象名称为 {object_name}")  
+    except FileNotFoundError:  
+        print(f"未找到文件 {file_name}")  
+    except Exception as e:  
+        print(f"上传文件时出错：{e}")
+
+
+def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
+    """  
+    上传csvs数据到S3  
+  
+    :param headers: csv的header信息
+    :param db_results: csv的数据信息，数据信息如下：
+    [
+        {
+            "rows":"数据库查出来的行信息",
+            "desc":"数据的描述信息"
+        }，
+        {
+            "rows":"数据库查出来的行信息",
+            "desc":"数据的描述信息"
+        }
+    ]
+    :param bucket_name: S3桶的名称  
+    :param object_name: 上传到S3的对象名称。如果未指定，则使用文件名  
+    :return: None  
+    """  
     # 创建一个S3客户端
     s3_client = get("s3")
 
@@ -40,8 +86,8 @@ def upload_csv_to_s3(columns, db_results, bucket_name, file_name):
     # 写入列名
     # 写入行数据
     if len(db_results) > 1:
-        columns.insert(0, "站点")
-        writer.writerow(columns)
+        headers.insert(0, "站点")
+        writer.writerow(headers)
            
         for db_result in db_results:       
             rows,desc = db_result["rows"],db_result["desc"]
@@ -51,7 +97,7 @@ def upload_csv_to_s3(columns, db_results, bucket_name, file_name):
                 writer.writerow(items)
 
     else:
-        writer.writerow(columns)
+        writer.writerow(headers)
         rows = db_results[0]["rows"]
         for row in rows:
             items = [item for item in row]

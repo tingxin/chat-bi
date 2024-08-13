@@ -3,10 +3,9 @@ import os
 import json
 
 DB_Type = 'MySQL'
-DEFAULT_Scenario = "power_station"
 
 
-ScenarioSelectionPrompt = """你现在是一个mysql数据仓库查询助理, 数据仓库中存储了几张电站，设备信息和用户信息相关表。根据用户的问题，返回对应场景的名字,
+ScenarioSelectionPrompt = f"""你现在是一个{DB_Type}数据仓库查询助理,根据用户的问题和分别每个场景的描述信息，返回用户问题对应场景的名字,
 它包含的数据可以回答用户的问题。只返回场景名称，不需要返回其他任何文本, 如果你认为没有对应的数据, 请返回\"错误: 暂时没有与您问题相关的数据.\", 
 如果你认为用户的问题不清楚，请直接返回\"错误: 您的问题我没有太理解，请换一种问法.\""""
 
@@ -46,20 +45,28 @@ result = dict()
 AllScenariosPrompt = list()
 result['Overall'] = {
     "ScenarioSelectionPrompt": ScenarioSelectionPrompt,
-    "AllScenariosPrompt": AllScenariosPrompt,
-    "DefaulteScenario": DEFAULT_Scenario
+    "AllScenariosPrompt": AllScenariosPrompt
 }
 
 
+def _find_default_scenario_by_name(file_path:str)->str:
+    parts = file_path.split("/")
+    default_doc = parts[-1]
+    findex= default_doc.find("_default")
+    default_scenario = default_doc[:findex]
+    return default_scenario
 
-def run():
-    directory = 'data'
-    files_and_folders = os.listdir(directory)
-    docs = [f"{directory}/{item}" for item in files_and_folders if item.endswith(".xlsx") or item.endswith(".csv")]
 
+def run(data_files_folder, save_to_path):
+    files_and_folders = os.listdir(data_files_folder)
+    docs = [f"{data_files_folder}/{item}" for item in files_and_folders if item.endswith(".xlsx") or item.endswith(".csv")]
 
+    print(docs)
     for doc in docs:
         print(f"begin to process  {doc}")
+        if doc.endswith("default.xlsx") or doc.endswith("default.csv"):
+            result['Overall']['DefaulteScenario'] = _find_default_scenario_by_name(doc)
+
         xls = pd.ExcelFile(doc)
         sheet_names = xls.sheet_names
 
@@ -131,12 +138,13 @@ def run():
         "query": "示例问题",
         "finalSQL": "返回的SQL",
         "chartType": "BarChartPic",
-        "columnList": ["列名A", "列名B"]
+        "columnList": ["列名A", "列名B"],
+        "columnType": ["列名A是维度还是度量", "列名B是维度还是度量"]
     }
     result["HardPrompt"] = HardPrompt
     result["ChartPrompt"] = ChartPrompt
 
-    with open(f"{os.getcwd()}/prompt_conf/promptConfig.json", mode='w', encoding="utf-8") as f:
+    with open(save_to_path, mode='w', encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=3)
 
-run()
+    

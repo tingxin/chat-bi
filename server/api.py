@@ -41,9 +41,9 @@ class Helper:
 
         question = Helper.format(question)
         if 'DefaultPrompt' in promptConfig and promptConfig['DefaultPrompt'] !="":
-            content = f"{promptConfig['Overall']['ScenarioSelectionPrompt']} {promptConfig['Overall']['AllScenariosPrompt']} {promptConfig['DefaultPrompt']}。"
+            content = f"{promptConfig['Overall']['AllScenariosPrompt']} {promptConfig['Overall']['ScenarioSelectionPrompt']} {promptConfig['DefaultPrompt']}。"
         else:
-            content = f"{promptConfig['Overall']['ScenarioSelectionPrompt']} {promptConfig['Overall']['AllScenariosPrompt']}。"
+            content = f"{promptConfig['Overall']['AllScenariosPrompt']} {promptConfig['Overall']['ScenarioSelectionPrompt']}。"
 
         content += "你要回答的问题是:{" + question +"}。"
         return content
@@ -68,13 +68,17 @@ class Helper:
         return ""
 
     @staticmethod
-    def _bad_response()->dict:
-        return {
+    def bad_response(error:str="")->dict:
+        r  = {
             "bedrockSQL": None,
             "queryTableName":"",
             "bedrockColumn": '',
             "content": '哎呀，我思路有点乱，请重新问一次，多个点提示吧！'
         }
+        if error !="":
+            r["error"] = error
+
+        return r
 
     @staticmethod
     def bad_final_response()->dict:
@@ -202,7 +206,7 @@ class Helper:
 def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
     bedrock_result = answer_template_sql(msg, trace_id)
-    if "bedrockSQL" not in bedrock_result or bedrock_result["template_result"] !="":
+    if "error" in bedrock_result or "bedrockSQL" not in bedrock_result or bedrock_result["template_result"] !="":
 
         prompt_content = prompt.get("PROMPT_FILE_NAME")
         is_hard = mode_type == "bedrock-hard"
@@ -368,7 +372,13 @@ def answer_template_sql( msg:list,
         # 如果解析失败，返回False
         return Helper.bad_response()
     
-    # 获取模板问题
+
+    if "error" in parsed:
+        print(f"{trace_id}===================> 没有找到模板问题\n{result}")
+        # 如果解析失败，返回False
+        return Helper.bad_response(parsed['error'])
+
+
     template_question = parsed["question"]
     params = parsed["params"]
 

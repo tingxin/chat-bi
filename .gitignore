@@ -42,3 +42,5 @@ pnpm-lock.yaml
 prompt/data/*
 server/__pycache__/*
 server/db/__pycache__/*
+__pycache__/*
+prompt/__pycache__/*
