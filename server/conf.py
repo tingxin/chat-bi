@@ -1,7 +1,9 @@
 import os
+import json
 
 mysql_info = dict()
 
+template_info = dict()
 
 def _load_db_conf():
     if len(mysql_info) == 0:
@@ -61,6 +63,41 @@ def get_mysql_conf_by_question(question:str)->list:
 
     # 如果没找到则查询所有数据
     return [mysql_info[key] for key in mysql_info]
+
+
+def load_sql_templates():
+    sql_template_path = os.getenv("SQL_TEMPLATE_PATH")
+    if sql_template_path.startswith("s3://"):
+        parts = sql_template_path.split("/")
+        bucket_name = parts[2]
+        file_folder_kes = "/".join(parts[3:])
+        pass
+
+    else:
+        result = []
+        file_path = f"{os.getcwd()}/{sql_template_path}/summary.json"
+        with open(file_path, mode='r') as f:
+            summary = json.load(f)
+
+        if summary:
+            for item in summary:
+                new_file_path = f"{os.getcwd()}/{sql_template_path}/{item['sql']}"
+                with open(new_file_path, mode='r') as f:
+                    lines = f.readlines()
+                    sql = "\n".join(lines)
+                    item['content'] = sql
+
+                    template_info[item["question"]] ={
+                        "params":item["params"],
+                        "content":item["content"]
+                    }
+
+
+def get_sql_templates():
+    return template_info
+    
+                    
+
 
     
 

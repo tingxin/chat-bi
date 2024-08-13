@@ -14,6 +14,8 @@ api = Api(app)
 
 
 conf.load_env()
+conf.load_sql_templates()
+
 
 def load_prompt_conf():
     pass

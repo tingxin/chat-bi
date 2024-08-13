@@ -89,7 +89,9 @@ def query(questions:list, bedrock_client=None):
     native_request = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 1024,
-        "temperature": 0.9,
+        "temperature": 0,
+        "top_p":1,
+        "top_k":1,
         "messages":questions
     }
     # Convert the native request to JSON.

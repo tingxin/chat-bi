@@ -200,9 +200,13 @@ class Helper:
 
 
 def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
-    prompt_content = prompt.get("PROMPT_FILE_NAME")
-    is_hard = mode_type == "bedrock-hard"
-    bedrock_result =  answer(msg, prompt_content, trace_id, is_hard)
+
+    bedrock_result = answer_template_sql(msg, trace_id)
+    if "bedrockSQL" not in bedrock_result or bedrock_result["template_result"] !="":
+
+        prompt_content = prompt.get("PROMPT_FILE_NAME")
+        is_hard = mode_type == "bedrock-hard"
+        bedrock_result =  answer(msg, prompt_content, trace_id, is_hard)
 
     if not bedrock_result['bedrockSQL'] or  bedrock_result['bedrockSQL'] == "ERROR: You can only read data.":
         return Helper.bad_final_response()
@@ -230,6 +234,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     md_table = Helper.mk_md_table(headers, db_results, max_row_return)
 
     if len(db_results) ==1:
+        # 如果是多个数据源，暂时不展示图表
         rows = db_results[0]["rows"]
         chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
     else:
@@ -252,12 +257,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
         result['extra'] = f"由于数据量较大，当前只显示{max_row_return}行，全量数据请点击如下链接下载：\n{load_url}\n"
 
-    print(result)
-
     return result
-
-
-
 
 
 
@@ -343,5 +343,72 @@ def answer(
     return result_j
 
 
-                                             
+def answer_template_sql( msg:list, 
+        trace_id:str):
 
+    # 对问题进行提示词工程并查询bedrock
+    bedrock = aws.get('bedrock-runtime')
+
+    last_item = msg[-1]
+    raw_content = last_item['content']
+    question_prompt = prompt.template_question(raw_content)
+
+    questions  = list()
+    # questions.extend(msg)
+    questions.append({
+        "role":"user",
+        "content": question_prompt
+    })
+    result = llm.query(questions,bedrock_client=bedrock)
+
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        print(f"{trace_id}===================> 没有找到模板问题\n{result}")
+        # 如果解析失败，返回False
+        return Helper.bad_response()
+    
+    # 获取模板问题
+    template_question = parsed["question"]
+    params = parsed["params"]
+
+    # 获取模板问题对应的模板SQL
+    template_sql = prompt.template_sql(template_question)
+    if template_sql == "":
+        return Helper.bad_response()
+    
+    fmt_sql = template_sql.format(*params)
+
+    sql_column_prompt = prompt.template_sql_columns(fmt_sql, raw_content)
+
+    questions  = list()
+    # questions.extend(msg)
+    questions.append({
+        "role":"user",
+        "content": sql_column_prompt
+    })
+    result = llm.query(questions,bedrock_client=bedrock)
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        print(f"{trace_id}===================> 没有找到模板sql列信息\n{result}")
+        # 如果解析失败，返回False
+        return Helper.bad_response()
+
+    print(parsed)
+    columns = parsed["params"]
+
+    result_j = {
+      "bedrockSQL": fmt_sql,
+      "queryTableName": "template",
+      "bedrockColumn": columns,
+      "chart_type": "BarChart"
+    }
+    return result_j
+
+
+    
+
+    
+
+                                             
