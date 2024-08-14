@@ -79,17 +79,18 @@ class Helper:
 
 
     @staticmethod
-    def mk_chart_data(columns, columns_type, rows, max_row=50)->dict:
+    def mk_chart_data(columns, columns_type, db_results, max_row=50)->dict:
         entity_name = dict()
         index_value = dict()
         chartData = dict()
 
         chartData['entity_name'] = entity_name
         chartData['index_value'] = index_value
-        if len(columns) <= 1:
+        if len(columns) <= 1 or "rows" not in db_results:
             return chartData
        
         print(columns_type)
+        rows = db_results["rows"]
         try:
             index = 0
             for row in rows:
@@ -222,14 +223,15 @@ class Helper:
 
         index = 0
 
-        rows = db_result["rows"]
-        for row in rows:
-            if index > max_row_return:
-                break
-            md_row = "| " + " | ".join([str(element) for element in row]) + " |"
-            md_table += md_row + "\n"
+        if "rows" in db_result:
+            rows = db_result["rows"]
+            for row in rows:
+                if index > max_row_return:
+                    break
+                md_row = "| " + " | ".join([str(element) for element in row]) + " |"
+                md_table += md_row + "\n"
 
-            index +=1
+                index +=1
 
         return md_table
 
@@ -274,7 +276,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
 
     md_table = Helper.mk_md_table(columns, db_results, max_row_return)
-    chart_data = Helper.mk_chart_data(columns,column_types, db_results["rows"], max_row_return)
+    chart_data = Helper.mk_chart_data(columns,column_types, db_results, max_row_return)
 
     result = {
         "content":"\n",
