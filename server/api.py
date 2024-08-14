@@ -114,6 +114,7 @@ class Helper:
     @staticmethod
     def query_db(db_info:dict, fmt_sql:str):
         print(f"=======================>正在查询{db_info['desc']}的数据")
+        conn = None
         try:
             conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
             rows, row_count = mysql.fetch(fmt_sql, conn)
@@ -128,11 +129,13 @@ class Helper:
                 "row_count":0
             }
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
     @staticmethod
     def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
         print(f"=======================>正在查询{db_info['desc']}的数据")
+        conn = None
         try:
             conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
             df = pd.read_sql(fmt_sql, conn) 
@@ -147,7 +150,8 @@ class Helper:
                 "row_count":0
             }
         finally:
-            conn.close()
+            if conn:
+                conn.close()
         
 
     @staticmethod
