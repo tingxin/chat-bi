@@ -387,6 +387,9 @@ def answer_template_sql(
     # 对问题进行提示词工程并查询bedrock
     last_item = msg[-1]
     raw_content = last_item['content']
+
+
+    # 开始查询问题对应的模板问题
     question_prompt = prompt.template_question(raw_content)
 
     questions  = list()
@@ -395,6 +398,8 @@ def answer_template_sql(
         "role":"user",
         "content": question_prompt
     })
+
+
     result = llm.query(questions,bedrock_client=bedrock)
 
     try:
@@ -442,12 +447,15 @@ def answer_template_sql(
         print(error)
         return Helper.bad_response(error)
     
-    columns = parsed["params"]
-
+    print(parsed)
+    columns = parsed["columns"]
+    columns_ype = parsed["columns_type"]
+    
     result_j = {
       "bedrockSQL": fmt_sql,
       "queryTableName": "template",
       "bedrockColumn": columns,
+      "column_type": columns_ype,
       "chart_type": "BarChart"
     }
     return result_j
