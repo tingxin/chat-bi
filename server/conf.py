@@ -8,6 +8,7 @@ template_info = dict()
 def _load_db_conf():
     if len(mysql_info) == 0:
         hosts = os.getenv("MYSQL_HOST").split(",")
+        ports =  os.getenv("MYSQL_PORT").split(",")
         databases = os.getenv("MYSQL_DATABASE").split(",")
         users = os.getenv("MYSQL_USER").split(",")
         pwds = os.getenv("MYSQL_PWD").split(",")
@@ -17,6 +18,7 @@ def _load_db_conf():
         for index in range(0, len(keys)):
             mysql_info[keys[index]] = {
                 "host":hosts[index],
+                "port":int(ports[index]),
                 "db":databases[index],
                 "user":users[index],
                 "pwd":pwds[index],
