@@ -84,8 +84,6 @@ def query(questions:list, bedrock_client=None):
 
     model_id = os.environ.get('MODEL_ID', 'anthropic.claude-3-haiku-20240307-v1:0')
 
-    print(questions)
-
     native_request = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 1024,

@@ -62,16 +62,11 @@ def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
   
     :param headers: csv的header信息
     :param db_results: csv的数据信息，数据信息如下：
-    [
+    
         {
             "rows":"数据库查出来的行信息",
-            "desc":"数据的描述信息"
-        }，
-        {
-            "rows":"数据库查出来的行信息",
-            "desc":"数据的描述信息"
+            "row_count":"数据的描述信息"
         }
-    ]
     :param bucket_name: S3桶的名称  
     :param object_name: 上传到S3的对象名称。如果未指定，则使用文件名  
     :return: None  
@@ -85,23 +80,11 @@ def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
     
     # 写入列名
     # 写入行数据
-    if len(db_results) > 1:
-        headers.insert(0, "站点")
-        writer.writerow(headers)
-           
-        for db_result in db_results:       
-            rows,desc = db_result["rows"],db_result["desc"]
-            for row in rows:
-                items = [item for item in row]
-                items.insert(0, desc)
-                writer.writerow(items)
-
-    else:
-        writer.writerow(headers)
-        rows = db_results[0]["rows"]
-        for row in rows:
-            items = [item for item in row]
-            writer.writerow(items)
+    writer.writerow(headers)
+    rows = db_results["rows"]
+    for row in rows:
+        items = [item for item in row]
+        writer.writerow(items)
     
     
 

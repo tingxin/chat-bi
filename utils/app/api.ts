@@ -11,6 +11,6 @@ export const getEndpoint = () => {
 // 创建axios实例
 export const http = axios.create({
   baseURL: SERVER_HOST,
-  timeout: 10000,
+  timeout: 30000,
   headers: {'X-Custom-Header': 'text2sql'}
 });

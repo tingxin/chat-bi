@@ -15,7 +15,7 @@ from .db import mysql
 from uuid import uuid4
 import threading
 from queue import Queue
-from pandas import DataFrame
+import pandas as pd
 
 
 
@@ -90,28 +90,33 @@ class Helper:
         }
 
     @staticmethod
-    def mk_chart_data(columns, rows, max_row=50)->dict:
+    def mk_chart_data(columns, columns_type, rows, max_row=50)->dict:
         entity_name = dict()
         index_value = dict()
         chartData = dict()
 
         chartData['entity_name'] = entity_name
         chartData['index_value'] = index_value
-        if len(columns) < 1:
+        if len(columns) <= 1:
             return chartData
-
+       
+        print(columns_type)
         try:
             index = 0
             for row in rows:
                 if index > max_row:
                     break
-
+                
                 items = [item for item in row]
-                entity_name[index] = items[0]
-                index_value[index] = float(items[-1])
+                print(items)
+                for i in range(0, len(columns)):
+                    if columns_type[i] == "度量":
+                        index_value[index] = float(items[i])
+                    else:
+                        entity_name[index] = items[i]
                 index+=1
         finally:
-            return chartData, index
+            return chartData
 
         
         
@@ -132,13 +137,13 @@ class Helper:
     def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
         print(f"=======================>正在查询{db_info['desc']}的数据")
         conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
-        rows, row_count = mysql.fetch(fmt_sql, conn)
+        df = pd.read_sql(fmt_sql, conn) 
         r = {
-            "rows":rows,
-            "row_count":row_count,
-            "desc":db_info["desc"]
+            "rows":df,
+            "row_count":len(df)
         }
         result_queue.put(r)
+        conn.close()
 
     @staticmethod
     def query_many_db(db_infos:list, fmt_sql:str)->list:
@@ -161,10 +166,37 @@ class Helper:
         return db_results
 
     @staticmethod
-    def mk_md_table(headers:list, db_results:list, max_row_return:int):
+    def merge_data(db_results:list, columns:list, columns_type:list):
+        dfs = [item["rows"] for item in db_results]
 
-        if len(db_results) > 1:
-            headers.insert(0, "站点")
+        merged_df = pd.concat(dfs, ignore_index=True)
+
+        # 假设dimension1和dimension2是维度，measure1和measure2是度量  
+        dimensions = list() 
+        measures = list() 
+
+        for index in range(0, len(columns)):
+            if columns_type[index] =="度量":
+                measures.append(columns[index])
+            else:
+                dimensions.append(columns[index])
+
+        # 按照维度分组，并对度量求和  
+        aggregated_df = merged_df.groupby(dimensions)[measures].sum().reset_index()
+        # 查看聚合后的数据  
+        records = aggregated_df.to_records(index=False).tolist()
+
+        return {
+            "rows":records,
+            "row_count":len(records)
+        }
+
+
+
+
+
+    @staticmethod
+    def mk_md_table(headers:list, db_result:list, max_row_return:int):
 
         # 开始构建Markdown表格
         md_table = "| " + " | ".join(headers) + " |\n"
@@ -173,46 +205,30 @@ class Helper:
         md_table += "| " + " | ".join(["---" for _ in headers]) + " |\n"
 
         index = 0
-        if len(db_results) > 1:
-            # 如果是多个数据源返回的数据，则添加站点信息
-            
-            for db_result in db_results:
-                if index > max_row_return:
-                    break
-                
-                rows, row_count,desc = db_result["rows"], db_result["row_count"],db_result["desc"]
-                for row in rows:
-                    if index > max_row_return:
-                        break
 
-                    md_row = f"| {desc} | " + " | ".join([str(element) for element in row]) + " |"
-                    md_table += md_row + "\n"
+        rows = db_result["rows"]
+        for row in rows:
+            if index > max_row_return:
+                break
+            md_row = "| " + " | ".join([str(element) for element in row]) + " |"
+            md_table += md_row + "\n"
 
-                    index +=1
-        else:
-            db_result = db_results[0]
-            rows, row_count,desc = db_result["rows"], db_result["row_count"],db_result["desc"]
-            for row in rows:
-                if index > max_row_return:
-                    break
-                md_row = "| " + " | ".join([str(element) for element in row]) + " |"
-                md_table += md_row + "\n"
-
-                index +=1
+            index +=1
 
         return md_table
 
 
 def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
-
-    bedrock_result = answer_template_sql(msg, trace_id)
-    if "error" in bedrock_result or "bedrockSQL" not in bedrock_result or bedrock_result["template_result"] !="":
+    bedrock = aws.get('bedrock-runtime')
+    bedrock_result = answer_template_sql(bedrock, msg, trace_id)
+    if "error" in bedrock_result or "bedrockSQL" not in bedrock_result or bedrock_result["bedrockSQL"] =="":
 
         prompt_content = prompt.get("PROMPT_FILE_NAME")
         is_hard = mode_type == "bedrock-hard"
-        bedrock_result =  answer(msg, prompt_content, trace_id, is_hard)
+        bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
     if not bedrock_result['bedrockSQL'] or  bedrock_result['bedrockSQL'] == "ERROR: You can only read data.":
+        print(f"bad response =====>{bedrock_result}")
         return Helper.bad_final_response()
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
@@ -226,57 +242,51 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     db_infos = conf.get_mysql_conf_by_question(raw_content)
     
 
+    columns = bedrock_result['bedrockColumn']
+    column_types = bedrock_result['column_type']
     if len(db_infos) == 1:
         db_info = db_infos[0]
-        db_result =Helper.query_db(db_info, fmt_sql)
-        db_results=[db_result]
+        db_results =Helper.query_db(db_info, fmt_sql)
     else:
         db_results= Helper.query_many_db(db_infos, fmt_sql)
+        db_results = Helper.merge_data(db_results, columns, column_types)
 
 
-    headers = bedrock_result['bedrockColumn']
-    md_table = Helper.mk_md_table(headers, db_results, max_row_return)
-
-    if len(db_results) ==1:
-        # 如果是多个数据源，暂时不展示图表
-        rows = db_results[0]["rows"]
-        chart_data, chart_row_count = Helper.mk_chart_data(headers, rows, max_row_return)
-    else:
-        chart_data, chart_row_count = dict(),0
-
+    md_table = Helper.mk_md_table(columns, db_results, max_row_return)
+    chart_data = Helper.mk_chart_data(columns,column_types, db_results["rows"], max_row_return)
 
     result = {
         "content":"\n",
         "mdData":md_table,
-        "chartData":chart_data if chart_row_count > 1 else dict(),
+        "chartData":chart_data,
         "sql":fmt_sql,
         "chartType":bedrock_result['chart_type'],
     }
 
-    total_row_count = sum([item["row_count"] for item in db_results])
+    total_row_count = db_results["row_count"]
     if total_row_count > max_row_return:
         # 数据量太大，则保存到s3，生成下载链接让客户后台下载
         bucket_name = os.getenv("BUCKET_NAME")
-        load_url =  aws.upload_csv_to_s3(headers, db_results, bucket_name, str(uuid4()))
+        load_url =  aws.upload_csv_to_s3(columns, db_results, bucket_name, str(uuid4()))
 
-        result['extra'] = f"由于数据量较大，当前只显示{max_row_return}行，全量数据请点击如下链接下载：\n{load_url}\n"
+        result['extra'] = load_url
+    else:
+        result['extra'] = ""
 
     return result
 
 
 
 def answer(
+        bedrock,
         msg:list, 
         promptConfig:dict,
         trace_id:str,
         is_hard_mode:bool):
     # 对问题进行提示词工程并查询bedrock
-    bedrock = aws.get('bedrock-runtime')
-
     last_item = msg[-1]
     raw_content = last_item['content']
     scenario_str = Helper.build_select_scenario_msg(raw_content, promptConfig)
-    print(f"formated msg=============>{msg}")
 
     rag_str = Helper.get_rag_str(last_item['content'])
 
@@ -334,11 +344,11 @@ def answer(
 
         parsed["columnList"] = columns
 
-    print(f"{trace_id}================> result is {result}")
     result_j = {
       "bedrockSQL": parsed['finalSQL'],
       "queryTableName": scenario,
       "bedrockColumn": columns,
+      "column_type": parsed['columnType'],
       "chart_type": parsed['chartType']
     }
     if is_hard_mode:
@@ -347,12 +357,12 @@ def answer(
     return result_j
 
 
-def answer_template_sql( msg:list, 
+def answer_template_sql(
+        bedrock,
+        msg:list, 
         trace_id:str):
 
     # 对问题进行提示词工程并查询bedrock
-    bedrock = aws.get('bedrock-runtime')
-
     last_item = msg[-1]
     raw_content = last_item['content']
     question_prompt = prompt.template_question(raw_content)

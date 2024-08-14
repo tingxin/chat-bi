@@ -1,7 +1,8 @@
 boto3
 faiss-cpu
 pymysql
-request
+requests
 flask_restful
 flask
 pandas
+openpyxl
