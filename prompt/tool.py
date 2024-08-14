@@ -88,6 +88,7 @@ def run(data_files_folder, save_to_path):
         IndicatorsListPrompt = list()
         for index in range(1, len(sheet_names)):
             sheet_name = sheet_names[index]
+            print(f"===================>正在处理sheet {sheet_name}")
             df_tb = pd.read_excel(doc, sheet_name=sheet_name, header=None)
             table_name = df_tb.iloc[0, 1]
             table_desc = df_tb.iloc[1, 1]
@@ -119,8 +120,9 @@ def run(data_files_folder, save_to_path):
                 desc_summary.append(column_desc)
 
             ddl_sumary.append(f"</{table_name}>")
+            if table_query_rule:
+                desc_summary.append(f"<{table_name}_rule>*MUST*还要遵循规则：{table_query_rule}</{table_name}_rule>")
 
-            desc_summary.append(f"<{table_name}_rule>*MUST*还要遵循规则：{table_query_rule}</{table_name}_rule>")
             desc_summary.append(f"</{table_name}>")
 
             table_prompt.append("\n".join(ddl_sumary))
@@ -129,7 +131,9 @@ def run(data_files_folder, save_to_path):
         table_prompt.append(f"<join>表与表之间的关联关系如下：{secnario_join_rule}</join>")
         secnario_conf['TablePrompt'] = "\n".join(table_prompt)
 
-        IndicatorsListPrompt.append(f"<common_rule>{secnario_query_rule}</common_rule>")
+        if secnario_query_rule:
+            IndicatorsListPrompt.append(f"<common_rule>{secnario_query_rule}</common_rule>")
+            
         secnario_conf['IndicatorsListPrompt'] = "\n".join(IndicatorsListPrompt)
         secnario_conf['OtherPrompt'] = OtherPrompt
 

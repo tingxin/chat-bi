@@ -160,13 +160,18 @@ export const ChatMessage: FC<Props> = memo(
         return;
       }
 
-      const startsspl = message.content.indexOf("|", 10);
-      const cleanedString = message.content.slice(startsspl+1);
-      const csvdata1 = markdownTableToCSV(cleanedString);
-      const csvdata = '\uFEFF' + csvdata1;
+      var url = "";
+      if (!message.extra) {
+        const startsspl = message.content.indexOf("|", 10);
+        const cleanedString = message.content.slice(startsspl+1);
+        const csvdata1 = markdownTableToCSV(cleanedString);
+        const csvdata = '\uFEFF' + csvdata1;
 
-      const blob = new Blob([csvdata], { type: 'text/plain;charset=UTF-8'  });
-      const url = URL.createObjectURL(blob);
+        const blob = new Blob([csvdata], { type: 'text/plain;charset=UTF-8'  });
+        url = URL.createObjectURL(blob);
+      } else {
+        url = message.extra;
+      }
       const link = document.createElement('a');
       link.download = fileName;
       link.href = url;
@@ -252,7 +257,11 @@ export const ChatMessage: FC<Props> = memo(
                 ) : (
                   <div className="prose whitespace-pre-wrap dark:prose-invert flex-1">
                     {message.content}
+                    <div>
+                    {message.extra}
+                    </div>
                   </div>
+                  
                 )}
 
                 {!isEditing && (
@@ -358,6 +367,13 @@ export const ChatMessage: FC<Props> = memo(
                       </button>
                     )}
                   </div>
+                </div>
+                <div>
+                {findIndex > 0 &&
+                    messages[findIndex - 1] &&
+                    messages[findIndex - 1].extra && (
+                    <a href={messages[findIndex - 1].extra}>下载文件</a>  
+                )}
                 </div>
                 <div>
                   {findIndex > 0 &&
