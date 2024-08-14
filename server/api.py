@@ -233,15 +233,20 @@ class Helper:
 def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     bedrock = aws.get('bedrock-runtime')
     bedrock_result = answer_template_sql(bedrock, msg, trace_id)
-    if "error" in bedrock_result or "bedrockSQL" not in bedrock_result or bedrock_result["bedrockSQL"] =="":
+    if "error" in bedrock_result:
 
         prompt_content = prompt.get("PROMPT_FILE_NAME")
         is_hard = mode_type == "bedrock-hard"
         bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
-    if not bedrock_result['bedrockSQL']:
-        print(f"bad response =====>{bedrock_result}")
-        return Helper.bad_response()
+    if "error" in bedrock_result:
+        return  {
+            "content":bedrock_result["error"],
+            "mdData":"",
+            "chartData":dict(),
+            "sql":"",
+            "chartType":""
+        }
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
     print(f"{trace_id}========================>fmt sql is {fmt_sql}")
@@ -289,7 +294,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
 
 
-def                                                                  answer(
+def answer(
         bedrock,
         msg:list, 
         promptConfig:dict,
@@ -313,13 +318,9 @@ def                                                                  answer(
     
 
     if scenario not in promptConfig:
-        print(f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}")
-        return {
-            "bedrockSQL": None,
-            "queryTableName":scenario,
-            "bedrockColumn": None,
-            "content": "ERROR: No Table",
-        }
+        error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
+        print(error)
+        return Helper.bad_response(error=error)
 
     print(f"{trace_id}===============>{scenario} is selected")              
 
@@ -338,13 +339,15 @@ def                                                                  answer(
     try:
         parsed = json.loads(result)
     except json.JSONDecodeError:
-        print(f"{trace_id}===================> 返回的结果不是json\n{result}")
-        # 如果解析失败，返回False
-        return Helper.bad_response()
+        error = f"{trace_id}===================> 返回的结果不是json\n{result}"
+        print(error)
+        return Helper.bad_response(error=error)
 
     if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
-        print(f"{trace_id}===================> 返回的结果没有生成SQL")
-        return Helper.bad_response()
+
+        error = f"{trace_id}===================> 返回的结果没有生成SQL"
+        print(error)
+        return Helper.bad_response(error=error)
 
     if 'columnList' in parsed and isinstance(parsed["columnList"], list):
         columns = list()
@@ -391,15 +394,17 @@ def answer_template_sql(
     try:
         parsed = json.loads(result)
     except json.JSONDecodeError:
-        print(f"{trace_id}===================> 没有找到模板问题\n{result}")
+        error  = f"{trace_id}===================> 没有找到模板问题\n{result}"
+        print(error)
         # 如果解析失败，返回False
-        return Helper.bad_response()
+        return Helper.bad_response(error)
     
 
     if "error" in parsed:
-        print(f"{trace_id}===================> 没有找到模板问题\n{result}")
+        error  = f"{trace_id}===================> 没有找到模板问题\n{parsed['error']}"
+        print(error)
         # 如果解析失败，返回False
-        return Helper.bad_response(parsed['error'])
+        return Helper.bad_response(error)
 
 
     template_question = parsed["question"]
@@ -408,7 +413,10 @@ def answer_template_sql(
     # 获取模板问题对应的模板SQL
     template_sql = prompt.template_sql(template_question)
     if template_sql == "":
-        return Helper.bad_response()
+        error  = f"{trace_id}===================> 模板SQL为空\n{template_question}"
+        print(error)
+        # 如果解析失败，返回False
+        return Helper.bad_response(error)
     
     fmt_sql = template_sql.format(*params)
 
@@ -424,11 +432,10 @@ def answer_template_sql(
     try:
         parsed = json.loads(result)
     except json.JSONDecodeError:
-        print(f"{trace_id}===================> 没有找到模板sql列信息\n{result}")
-        # 如果解析失败，返回False
-        return Helper.bad_response()
-
-    print(parsed)
+        error  = f"{trace_id}===================> 没有找到模板sql列信息\n{result}"
+        print(error)
+        return Helper.bad_response(error)
+    
     columns = parsed["params"]
 
     result_j = {
