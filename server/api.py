@@ -70,9 +70,6 @@ class Helper:
     @staticmethod
     def bad_response(error:str="")->dict:
         r  = {
-            "bedrockSQL": None,
-            "queryTableName":"",
-            "bedrockColumn": '',
             "content": '哎呀，我思路有点乱，请重新问一次，多个点提示吧！'
         }
         if error !="":
@@ -80,14 +77,6 @@ class Helper:
 
         return r
 
-    @staticmethod
-    def bad_final_response()->dict:
-        return {
-          "content": '哎呀，我思路有点乱，请重提问，多个点提示吧！',
-          "mdData": '',
-          "chartData": '',
-          "sql": '',
-        }
 
     @staticmethod
     def mk_chart_data(columns, columns_type, rows, max_row=50)->dict:
@@ -125,25 +114,41 @@ class Helper:
     @staticmethod
     def query_db(db_info:dict, fmt_sql:str):
         print(f"=======================>正在查询{db_info['desc']}的数据")
-        conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
-        rows, row_count = mysql.fetch(fmt_sql, conn)
-        return {
-            "rows":rows,
-            "row_count":row_count,
-            "desc":db_info["desc"]
-        }
+        try:
+            conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
+            rows, row_count = mysql.fetch(fmt_sql, conn)
+            return {
+                "rows":rows,
+                "row_count":row_count,
+                "desc":db_info["desc"]
+            }
+        except Exception as ex:
+            print(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
+            return {
+                "row_count":0
+            }
+        finally:
+            conn.close()
 
     @staticmethod
     def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
         print(f"=======================>正在查询{db_info['desc']}的数据")
-        conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
-        df = pd.read_sql(fmt_sql, conn) 
-        r = {
-            "rows":df,
-            "row_count":len(df)
-        }
-        result_queue.put(r)
-        conn.close()
+        try:
+            conn = mysql.get_conn(db_info['host'], 3306, db_info['user'], db_info['pwd'], db_info['db'])
+            df = pd.read_sql(fmt_sql, conn) 
+            r = {
+                "rows":df,
+                "row_count":len(df)
+            }
+            result_queue.put(r)
+        except Exception as ex:
+            print(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
+            r = {
+                "row_count":0
+            }
+        finally:
+            conn.close()
+        
 
     @staticmethod
     def query_many_db(db_infos:list, fmt_sql:str)->list:
@@ -161,12 +166,19 @@ class Helper:
         db_results = list()
         while not result_queue.empty():
             db_result = result_queue.get()
-            db_results.append(db_result)
+            if "rows" in db_result:
+                db_results.append(db_result)
         
         return db_results
 
     @staticmethod
     def merge_data(db_results:list, columns:list, columns_type:list):
+        if len(db_results) == 0:
+            return {
+            "rows":[],
+            "row_count":0
+        }
+
         dfs = [item["rows"] for item in db_results]
 
         merged_df = pd.concat(dfs, ignore_index=True)
@@ -227,9 +239,9 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         is_hard = mode_type == "bedrock-hard"
         bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
-    if not bedrock_result['bedrockSQL'] or  bedrock_result['bedrockSQL'] == "ERROR: You can only read data.":
+    if not bedrock_result['bedrockSQL']:
         print(f"bad response =====>{bedrock_result}")
-        return Helper.bad_final_response()
+        return Helper.bad_response()
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
     print(f"{trace_id}========================>fmt sql is {fmt_sql}")
@@ -277,7 +289,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
 
 
-def answer(
+def                                                                  answer(
         bedrock,
         msg:list, 
         promptConfig:dict,
@@ -296,11 +308,12 @@ def answer(
         "role":"user",
         "content": scenario_str
     })
+    print("begin select scenario")
     scenario = llm.query(questions,bedrock_client=bedrock)
     
 
     if scenario not in promptConfig:
-        print(f"{trace_id}===============>failed to find scenario: {scenario}")
+        print(f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}")
         return {
             "bedrockSQL": None,
             "queryTableName":scenario,
@@ -308,7 +321,7 @@ def answer(
             "content": "ERROR: No Table",
         }
 
-    print(f"{trace_id}===============>{scenario} is selected")
+    print(f"{trace_id}===============>{scenario} is selected")              
 
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
     questions  = list()
