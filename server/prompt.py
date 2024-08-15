@@ -43,7 +43,7 @@ def template_question(question:str):
     for key in templates:
         item = templates[key]
         params = item['params']
-        questions.append(f"<option><q>{key}</q>该问题的参数是：<params>{params}</params></option>")
+        questions.append(f"<option><q>{key}</q>该问题的参数是：<params>{params}</params>，参数都是不固定的，可变的</option>")
 
     questions_str = "\n".join(questions)
     p = f"""
@@ -51,57 +51,76 @@ def template_question(question:str):
     {questions_str}
     请注意*每个备选问题的参数都是占位符，是一种变量，可以被其他相同类型的数据类型替换*
     用户的问题是：<user_questions>{question}</user_questions>
-    请严格遵守如下思考方式，思考问题：
-    1. 用户的问题，那些是要查询的信息，那些是查询条件
-    2. 判断查询信息是否相似：备选问题如果没有直接给出用户问题的查询信息，则说明数据库中不存在用户问题查询的信息，则不相似，否则相似。
-    3. 判断查询条件是否相似：用户问题中的查询条件，除了参数不一致，条件的主语和谓词是否都一致，如果一致则判定和备选问题相似，否则不相似
-    4. 如果查询信息和查询条件都判定为相似，则判定用户问题和备选问题相似，否则两个问题不相似
 
-    
-    请参考下面三个例子：
+    对每一个备选问题,请与用户问题进行对比，严格遵守如下思考方式，进行判定：
+    1. 用户的问题中那些是要查询的信息,那些是查询条件，查询条件的个数 user_condition_count
+    2. 备选问题中那些是要查询的信息，那些查询条件，查询条件的个数 option_condition_count
+    3. 创建变量result, 令 result = user_condition_count == option_condition_count 
+    4. (if result == True继续思考，否则直接到第六步)判定查询条件，如果查询条件主语和谓语都相同，result = result && True，否则 result = result && False
+    5. (if result == True继续思考，否则直接到第六步)判断查询信息是否相似：备选问题如果没有直接给出用户问题的查询信息，则说明数据库中不存在用户问题查询的信息 result = result & False。
+    6. 检查 result 的值
+    如果 result == True 则按如下格式返回 并停止思考:
+    {{
+        "question":"当前的备选问题",
+        "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
+        "reason":"按上述思考步骤得出result == True的原因，把每一个步骤的result的值和原因都要写明",
+        "result: result 的值
+    }}
+    如果 result == False, 则继续把下一个备选问题 与用户问题 按上述步骤处理。
+
+    如果对所有备选问题和用户问题思考后，没有任何一个备选问题与用户问题，经过上述思考得出 result == False，则返回格式如下:
+    {{
+        "error":"未能找到匹配的问题",
+        "reason":"得出result == True的原因",
+        "result: result 的值
+    }}
+   
+    **注意：请不要返回其他任何信息**
+
+    请严格参考下面三个例子：
     <example1>
     备选问题：请查询用户123账号下设备型号是xxx1的设备的数量和总发电量
     用户问题：用户456的，机型是bac的装机容量
     思考：
-    1. 用户问题要查询的信息是装机容量，查询条件是 用户账号，设备型号
-    2. 由于要查询的装机容量在备选问题中不存在，则查询信息不相似
-    结论：用户问题和备选问题不相似
+    1. 用户问题要查询的信息是装机容量，查询条件是 用户账号，备型号， user_condition_count = 2
+    2. 备选问题要查询的信息是设备数量，总发电量，查询条件是 用户账号，设备型号， option_condition_count =  2
+    3. result = user_condition_count == option_condition_count
+    4. 因为 result == True, 所以执行第四步骤，因为两个问题的查询条件主语和谓语都相似，所以 result = result && True
+    5. 因为 result == True, 用户问题的查询信息在备选问题中不存在，则查询信息不相似,所以 所以 result = result && False
+    6. result 值为 False， 因为 result == False 所以思考下一个问题
     </example1>
     
     <example2>
     备选问题：请查询用户123账号下机型是xxx1的设备的数量和总发电量
-    用户问题：用户aa222机型rttt的发电量
+    用户问题：用户222机型rttt的发电量
     思考：
-    1. 用户问题要查询的信息是发电量，查询条件是 用户账号，设备型号
-    2. 由于要查询的发电量在备选问题中极为相似，则判定查询信息相似
-    3. 由于用户问题的查询条件和备选问题的查询条件除了参数不同，主语和谓语都相似，则判定查询条件相似
-    4. 由于查询信息和查询条件都相似，则用户问题和备选问题相似
-    结论：用户问题和备选问题相似
+    1. 用户问题中查询的信息是发电量，查询条件是 用户账号，设备型号， user_condition_count = 2
+    2. 备选问题中查询的信息是设备数量，总发电量，查询条件是 用户账号，option_condition_count =  2
+    3. result = user_condition_count == option_condition_count
+    4. 因为 result == True, 所以执行第四步骤,由于用户问题的查询条件和备选问题的查询条件除了参数不同，主语和谓语都一致，则result = result && True
+    5. 因为 result == True,由于要查询的发电量在备选问题中极为相似，则则result = result && True
+    6. result = True，因为result == True
+    返回{{
+        "question":"请查询用户123账号下机型是xxx1的设备的数量和总发电量",
+        "params":[222，"rttt"],
+        "reason":"得出result == True的原因",
+        "result: result 的值
+    }}
     </example2>
 
     <example3>
     备选问题：请查询用户123账号下机型是xxx1的设备的数量和总发电量
     用户问题：用户0090的发电量
     思考：
-    1. 用户问题要查询的信息是发电量，查询条件是 用户账户
+    1. 用户问题查询的信息是发电量，查询条件是 用户账户 查询条件个数为 user_condition_count =  1
+    1. 备选问题查询的信息是设备数量和发电量，查询条件是 用户账户和机型 option_condition_count =  2
     2. 由于要查询的发电量在备选问题中极为相似，则判定查询信息相似
-    3. 由于用户问题的缺少查询条件（机型条件），则判定查询条件不相似
-    4. 由于查询条件不相似，则用户问题和备选问题不相似
-    结论：用户问题和备选问题不相似
+    3. result = user_condition_count ==option_condition_count
+    4. 因为 result == False, 直接到第六步
+    6. result = False,  因为 result == False 所以思考下一个问题
     </example3>
 
-    请根据上述方式思考：在备选问题中找出与用户问题相似的问题并返回用户问题中的参数，以及判断的原因（请按照思考步骤给出原因）,返回格式如下:
-    {{
-        "question":"您选择的最相似的备选问题",
-        "params":["您从用户的问题中找到的参数列表"],
-        "reason":"与用户问题问题相似的原因"，
-    }}
-    如果用户问题和备选问题中不相似，请返回如下格式：
-    {{
-        "error":"无法找到相似问题",
-         "reason":"与用户问题问题不相似的原因"
-    }}
-    注意：请不要返回其他任何信息
+
     """
     return p
 
