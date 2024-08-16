@@ -45,6 +45,7 @@ class QueryLLM(Resource):
         mtype = request.args.get('mtype', '')
         trace_id = request.headers.get('X-Trace-Id')
         data = service.get_result(json_data, trace_id, mtype)
+        print(data)
         return data, 200
 
 # 将资源添加到API端点

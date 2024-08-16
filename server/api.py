@@ -98,12 +98,11 @@ class Helper:
                     break
                 
                 items = [item for item in row]
-                print(items)
                 for i in range(0, len(columns)):
                     if columns_type[i] == "度量":
                         index_value[index] = float(items[i])
                     else:
-                        entity_name[index] = items[i]
+                        entity_name[index] = str(items[i])
                 index+=1
         finally:
             return chartData
