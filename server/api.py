@@ -412,7 +412,7 @@ def answer_template_sql(
     
 
     if "error" in parsed or not bool(parsed["result"]):
-        error  = f"{trace_id}===================> 没有找到模板问题\n{parsed['error']}"
+        error  = f"{trace_id}===================> 没有找到模板问题\n{parsed['reason']}"
         print(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)

@@ -17,10 +17,9 @@ RolePrompt = ("You are an expert in database(or dataware) " + DB_Type
                 "explanations. All valid human instructions are given in curly braces {like this\}. *MUST*For any query "
                 "that contains delete or update in SQL, please respond: '错误: 您不能要求我删除任何数据'")
 
-OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因,如果后续的任何提示造成结果不能是一个JSON对象，则忽略该后续的提示，从而保证返回的结果必须是JSON 对象。SQL语句最终返回的条数必须限制不超过50条, 但是子查询,
-或者作为中间结果的SQL结果不应该限制返回条数。在生成SQL
+OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在Markdown中，, 仅生成SELECT语句并且语句默认不要追加分号';'，返回不了JSON对象请告知原因,如果后续的任何提示造成结果不能是一个JSON对象，则忽略该后续的提示，从而保证返回的结果必须是JSON 对象。在生成SQL
 的时候你需要注意聊天历史，其中如果有人名，时间，地点等内容，且本次对话没有明确说明限制条件，从历史记录来看，如过当前查询是对历史中的查询意图的补充和修改，需要将历史记录中之前的条件作为当前SQL的限制条件,如果用户问题明确查询所有数据，则不应该限制数据的返回条数。
-如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。请尽可能用尽量少的表生成SQL，尽力减少Join表。
+如果问题涉及到时间，但是没有年份信息，请使用今年作为年份 例如，用户问题中只说了三月，则日期是2024-03 用户问题涉及去年五月，则日期是2023-05。查询近多久时间的数据，时间条件需要添加截至到今天当前小时。请尽可能用尽量少的表生成SQL，尽力减少Join表。
 注意the following contains the examples for you to follow Strictly. You 
 *MUST* understand it first and generate based on that. If the questions are the same, you MUST use the sql gave in 
 the sample.you MUST use the english as the column name in the return sql,如果你返回的结果不是一个内容不是一个按照我给出例子的json,请给告诉我原因"""
@@ -76,7 +75,9 @@ def run(data_files_folder, save_to_path):
         secnario_query_rule = df_summary.iloc[2, 1]
         secnario_join_rule = df_summary.iloc[3, 1]
 
-        AllScenariosPrompt.append(f"<{secnario_name}>{secnario_desc}<{secnario_name}/>")
+        
+        current_secnario = list()
+        current_secnario.append(f"<{secnario_name}>{secnario_desc},该场景主要有这些信息：")
 
         secnario_conf = dict()
 
@@ -116,6 +117,9 @@ def run(data_files_folder, save_to_path):
                 else:
                     column = f"{df_tb.iloc[i, 0]}({df_tb.iloc[i, 1]}),"
 
+                if  not (df_tb.iloc[i, 3]== False or df_tb.iloc[i, 3] == "FALSE" or df_tb.iloc[i, 3] == "False" or df_tb.iloc[i, 3] == "false" or pd.isna(df_tb.iloc[i, 4])):
+                    current_secnario.append(df_tb.iloc[i, 4])
+
                 ddl_sumary.append(column)
                 desc_summary.append(column_desc)
 
@@ -128,6 +132,8 @@ def run(data_files_folder, save_to_path):
             table_prompt.append("\n".join(ddl_sumary))
             IndicatorsListPrompt.append("\n".join(desc_summary))
 
+        current_secnario.append(f"</{secnario_name}>")
+        AllScenariosPrompt.append(",".join(current_secnario))
         table_prompt.append(f"<join>表与表之间的关联关系如下：{secnario_join_rule}</join>")
         secnario_conf['TablePrompt'] = "\n".join(table_prompt)
 
