@@ -18,7 +18,6 @@ from queue import Queue
 import pandas as pd
 
 
-
 class Helper:
     @staticmethod
     def format(raw:str):
@@ -86,10 +85,14 @@ class Helper:
 
         chartData['entity_name'] = entity_name
         chartData['index_value'] = index_value
-        if len(columns) <= 1 or "rows" not in db_results:
+        # 前端UI 暂时只支持一个度量，一个维度
+        if len(columns) != 2 or "rows" not in db_results:
+            return chartData
+
+        # 前端目前只支持一个维度，一个度量
+        if columns_type[0] == columns_type[1]:
             return chartData
        
-        print(columns_type)
         rows = db_results["rows"]
         try:
             index = 0
@@ -225,7 +228,7 @@ class Helper:
         if "rows" in db_result:
             rows = db_result["rows"]
             for row in rows:
-                if index > max_row_return:
+                if index >= max_row_return:
                     break
                 md_row = "| " + " | ".join([str(element) for element in row]) + " |"
                 md_table += md_row + "\n"
@@ -241,7 +244,8 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     if "error" in bedrock_result:
 
         prompt_content = prompt.get("PROMPT_FILE_NAME")
-        is_hard = mode_type == "bedrock-hard"
+        # is_hard = mode_type == "bedrock-hard"
+        is_hard = True
         bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
     if "error" in bedrock_result:
@@ -273,25 +277,31 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
 
+    cn_columns = bedrock_result['cn_column']
+    md_table = Helper.mk_md_table(cn_columns, db_results, max_row_return)
 
-    md_table = Helper.mk_md_table(columns, db_results, max_row_return)
-    chart_data = Helper.mk_chart_data(columns,column_types, db_results, max_row_return)
+    print(column_types)
+    chart_data = Helper.mk_chart_data(cn_columns,column_types, db_results, max_row_return)
 
     result = {
-        "content":"\n",
         "mdData":md_table,
         "chartData":chart_data,
         "sql":fmt_sql,
         "chartType":bedrock_result['chart_type'],
     }
 
+    if "clarify" in bedrock_result:
+        result['content'] = bedrock_result['clarify']
+        
+
     total_row_count = db_results["row_count"]
-    if total_row_count > max_row_return:
+    if total_row_count >= max_row_return:
         # 数据量太大，则保存到s3，生成下载链接让客户后台下载
         bucket_name = os.getenv("BUCKET_NAME")
-        load_url =  aws.upload_csv_to_s3(columns, db_results, bucket_name, str(uuid4()))
+        load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, str(uuid4()))
 
         result['extra'] = load_url
+        result['content'] =result['content'] +f"\n数据量较大，默认只显示了 {max_row_return}, 请点击下载查看全部数据。建议使用汇总数据而非明细数据分析"
     else:
         result['extra'] = ""
 
@@ -306,6 +316,7 @@ def answer(
         trace_id:str,
         is_hard_mode:bool):
     # 对问题进行提示词工程并查询bedrock
+    print([item['role'] for item in msg])
     last_item = msg[-1]
     raw_content = last_item['content']
     scenario_str = Helper.build_select_scenario_msg(raw_content, promptConfig)
@@ -323,15 +334,56 @@ def answer(
     
 
     if scenario not in promptConfig:
-        error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
-        print(error)
-        return Helper.bad_response(error=error)
+        # 如果有默认场景就尝试使用默认场景
+        if 'DefaulteScenario' in promptConfig:
+            error = f"{trace_id}===============>没有找到合适的场景: {scenario}，尝试使用默认场景查询{promptConfig['DefaulteScenario']}"
+            print(error)
+            scenario = promptConfig['DefaulteScenario']
+        else:
+            error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
+            print(error)
+            return Helper.bad_response(error=error)
+        
 
-    print(f"{trace_id}===============>{scenario} is selected")              
+    print(f"{trace_id}===============>{scenario} is selected")
+               
 
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
     questions  = list()
     # questions.extend(msg)
+    history_count = int(os.getenv("HISTORY_COUNT", 5))
+
+    
+    if len(msg) - history_count>=0:
+        begin_index = len(msg) - history_count
+        bound = history_count
+    else:
+        begin_index = 0
+        bound = len(msg)
+
+    # 第一和最后一个都必须是user 发起的提问
+    msg_first = msg[begin_index]
+    if msg_first['role'] !="user":
+        begin_index = begin_index -1
+        bound = bound + 1
+    
+
+    for i in range(0, bound -1):
+        msg_item = msg[begin_index + i]
+        
+        if msg_item["role"] == "assistant":
+            if "clarify" in msg_item:
+                q = msg_item['clarify']
+            else:
+                q = "查询完毕"
+        else:
+            q = msg_item["content"]
+
+        questions.append({
+            "role":msg_item["role"],
+            "content": q
+        })
+
     questions.append({
         "role":"user",
         "content": question_str
@@ -364,16 +416,17 @@ def answer(
                 columns.append(item)
 
         parsed["columnList"] = columns
+    print(parsed)
 
     result_j = {
       "bedrockSQL": parsed['finalSQL'],
       "queryTableName": scenario,
       "bedrockColumn": columns,
+      "cn_column":parsed['columnCNList'],
       "column_type": parsed['columnType'],
       "chart_type": parsed['chartType']
     }
     if is_hard_mode:
-        result_j["reasoningFinal"] =parsed["reasoningFinal"]
         result_j["clarify"] =parsed["clarify"]
     return result_j
 
@@ -445,8 +498,7 @@ def answer_template_sql(
         error  = f"{trace_id}===================> 没有找到模板sql列信息\n{result}"
         print(error)
         return Helper.bad_response(error)
-    
-    print(parsed)
+
     columns = parsed["columns"]
     columns_ype = parsed["columns_type"]
     

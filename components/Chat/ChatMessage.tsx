@@ -159,8 +159,9 @@ export const ChatMessage: FC<Props> = memo(
         // user pressed cancel on prompt
         return;
       }
-
+      
       var url = "";
+      console.log(message);
       if (!message.extra) {
         const startsspl = message.content.indexOf("|", 10);
         const cleanedString = message.content.slice(startsspl+1);

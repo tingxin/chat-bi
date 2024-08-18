@@ -24,16 +24,10 @@ OtherPrompt = """*MUST*请一定要参考例子返回JSON对象,不要包裹在M
 *MUST* understand it first and generate based on that. If the questions are the same, you MUST use the sql gave in 
 the sample.you MUST use the english as the column name in the return sql,如果你返回的结果不是一个内容不是一个按照我给出例子的json,请给告诉我原因"""
 
-HardPrompt = """1. 请注意, 在生成SQL的时候, 这里有几个追加的要求, 具体如下: 先检查问题的句子成分和含义成分是否清晰, 是否有歧义, 如果不清晰的话要进行扩展, 
-使问题变得清晰。将澄清后的问题输出到'clarify'属性中。你需要一步一步思考, 并对SQL进行解释, 解释部分放在输出的'reasoning'属性中。针对一个问题, 由于SQL可能有不同的写法, 你需要先从不同的角度思考, 
-生成最多五个针对当前问题不同的写法的SQL, 并包含独立的解释。生成的SQL结果放到'referenceSql'属性中。你接下来要检查上面的几个SQL是否有错误, 检查的时候你要从是否正确理解问题等角度, 重新思考, 
-并假定SQL就是错误的。检查的结果需要写到每一个SQL的'check1'和'check2'...'checkN'属性中。如果没有错误就写它全对的概率, 如{'check1': {'no_error': 0.6'}}, 
-如果有错误则参考这样的输出例子: {'check2':{'error': 'VARCHAR需要转换成Float类型。'}} 
-最后一步是根据上面的几个'referenceSql'和各自'check'的结果confidence来生成你认为正确的最终SQL和分析, 放到'finalSQL', 'reasoningFinal'中。2. 
-结果样式的例子如下（注意顺序）: {'clarify': '问题应该是: XYZ ', 'reasoning1': 'reason AAA', 'referenceSql1':'sql AAA', 
-'reasoning2':'reason BBB', 'referenceSql2':'sql BBB', 'check1':'For SQL AAA: no error', 'check2':'For SQL BBB: 
-VARCHAR需要转换成Float类型', 'reasoningFinal': 'reason for final SQL', 'finalSQL': 'The final SQL based on above two 
-reference sql and the error-check result.', 'columnList': ['column1','column2']}"""
+HardPrompt = """1. 请注意, 在生成SQL的时候, 这里有几个追加的要求, 具体如下: 先检查问题的句子成分和含义成分是否清晰, 是否有歧义, 
+如果不清晰，或者用户的问题中有你认为不清晰或者错误的地方，你可以要求用户澄清，或者给出用户建议的提问方式，如果你认为用户提问的问题不需要修改，则回答我已经按您的要求返回了数据。将上述信息输出到'clarify'属性中。
+返回的数据中，columnType 列表只标识 对应的列是维度还是度量，例如["维度", "度量"]
+"""
 
 ChartPrompt = """ 请返回需要展示的字段和'LineChartPic, 如果SQL查询的结果适合柱状图, 请返回需要展示的字段和'BarChartPic, 如果SQL查询的结果适合饼图, 
 请返回需要展示的字段和'PieChartPic'。如果都不适合, 请返回\"错误: 抱歉，数据不适合使用图表进行展示.\" 其中'columnList'属性是针对用户问题，图表需要展示的字段，数组形式, 
@@ -149,6 +143,8 @@ def run(data_files_folder, save_to_path):
         "finalSQL": "返回的SQL",
         "chartType": "BarChartPic",
         "columnList": ["列名A", "列名B"],
+        "columnCNList": ["列名A可能的中文名称或含义", "列名B可能的中文名称或含义"],
+        "clarify":"如果需要用户澄清或者补充说明问题，则询问用户，如果没有，则返回'查询完毕'",
         "columnType": ["列名A是维度还是度量", "列名B是维度还是度量"]
     }
     result["HardPrompt"] = HardPrompt
