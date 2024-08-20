@@ -283,11 +283,13 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     print(column_types)
     chart_data = Helper.mk_chart_data(cn_columns,column_types, db_results, max_row_return)
 
+    chartType ="BarChartPic" if bedrock_result['chart_type'].find("错误") >=0 else bedrock_result['chart_type']
+
     result = {
         "mdData":md_table,
         "chartData":chart_data,
         "sql":fmt_sql,
-        "chartType":bedrock_result['chart_type'],
+        "chartType":chartType,
     }
 
     if "clarify" in bedrock_result:
