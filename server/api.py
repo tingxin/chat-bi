@@ -418,7 +418,7 @@ def answer(
                 columns.append(item)
 
         parsed["columnList"] = columns
-    print(parsed)
+    
 
     result_j = {
       "bedrockSQL": parsed['finalSQL'],
@@ -430,6 +430,8 @@ def answer(
     }
     if is_hard_mode:
         result_j["clarify"] =parsed["clarify"]
+
+    print(result_j)
     return result_j
 
 

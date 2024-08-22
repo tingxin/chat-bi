@@ -28,14 +28,14 @@ example_file_name=example_file.split("/")[1]
 rag_file_name=rag_file.split("/")[1]
 
 prompt_path = save_to_path +"/" + prompt_file_name
-example_path = save_to_path +"/" + prompt_file_name
-rag_path = save_to_path +"/" + prompt_file_name
+example_path = save_to_path +"/" + example_file_name
+rag_path = save_to_path +"/" + rag_file_name
 
 tool.run(data_files, prompt_path)
 
 aws.upload_file_to_s3(prompt_path,bucket_name, prompt_file)
-aws.upload_file_to_s3(example_path,bucket_name, prompt_file)
-aws.upload_file_to_s3(rag_path,bucket_name, prompt_file)
+aws.upload_file_to_s3(example_path,bucket_name, example_file)
+aws.upload_file_to_s3(rag_path,bucket_name, rag_file)
 
 
 
