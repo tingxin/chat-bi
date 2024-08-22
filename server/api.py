@@ -277,7 +277,11 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
 
-    cn_columns = bedrock_result['cn_column']
+    if 'cn_column' in bedrock_result:
+        cn_columns = bedrock_result['cn_column']
+    else:
+        cn_columns = columns
+    
     md_table = Helper.mk_md_table(cn_columns, db_results, max_row_return)
 
     print(column_types)
