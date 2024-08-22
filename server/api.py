@@ -307,7 +307,12 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, str(uuid4()))
 
         result['extra'] = load_url
-        result['content'] =result['content'] +f"\n数据量较大，默认只显示了 {max_row_return}, 请点击下载查看全部数据。建议使用汇总数据而非明细数据分析"
+        many_msg = f"\n数据量较大，默认只显示了 {max_row_return}, 请点击下载查看全部数据。建议使用汇总数据而非明细数据分析"
+        if 'content' in result:
+            result['content'] =result['content'] +many_msg
+        else:
+             result['content'] = many_msg
+
     else:
         result['extra'] = ""
 
