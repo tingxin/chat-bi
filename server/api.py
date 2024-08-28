@@ -346,10 +346,10 @@ def answer(
 
     if scenario not in promptConfig:
         # 如果有默认场景就尝试使用默认场景
-        if 'DefaulteScenario' in promptConfig:
-            error = f"{trace_id}===============>没有找到合适的场景: {scenario}，尝试使用默认场景查询{promptConfig['DefaulteScenario']}"
+        if 'DefaulteScenario' in promptConfig["Overall"]:
+            error = f"{trace_id}===============>没有找到合适的场景: {scenario}，尝试使用默认场景查询{promptConfig['Overall']['DefaulteScenario']}"
             print(error)
-            scenario = promptConfig['DefaulteScenario']
+            scenario =promptConfig['Overall']['DefaulteScenario']
         else:
             error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
             print(error)
