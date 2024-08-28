@@ -20,8 +20,8 @@ export interface HomeContextProps {
     conversation: Conversation,
     data: KeyValuePair,
   ) => void;
-  // user: any;
-  // signOut: any;
+  user: any;
+  signOut: any;
 }
 
 const HomeContext = createContext<HomeContextProps>(undefined!);

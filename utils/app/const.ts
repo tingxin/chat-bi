@@ -48,3 +48,5 @@ export const RAG_SEARCH_LENGHT = process.env.RAG_SEARCH_LENGHT;
 
 export const RAG_FILE_NAME = process.env.RAG_FILE_NAME;
 
+export const BACK_USER_POOL_REGION = process.env.BACK_USER_POOL_REGION;
+
