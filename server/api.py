@@ -16,6 +16,27 @@ from uuid import uuid4
 import threading
 from queue import Queue
 import pandas as pd
+import logging
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger(__name__)
+
+# 设置日志级别
+logger.setLevel(logging.INFO)
+# 创建一个handler，用于写入日志文件
+handler = RotatingFileHandler('chatbi.log', maxBytes=10000, backupCount=3)
+logger.addHandler(handler)
+
+
+# 创建一个handler，用于将日志输出到控制台
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+logger.addHandler(console_handler)
+
+# 定义日志格式
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
 
 
 class Helper:
@@ -115,8 +136,8 @@ class Helper:
         
     
     @staticmethod
-    def query_db(db_info:dict, fmt_sql:str):
-        print(f"=======================>正在查询{db_info['desc']}的数据")
+    def query_db(db_info:dict, fmt_sql:str, user_id:str, trace_id:str):
+        logger.info(f"user:{user_id}===>trace id:{trace_id}===>query {db_info['desc']} data")
         conn = None
         try:
             conn = mysql.get_conn(db_info['host'], db_info['port'], db_info['user'], db_info['pwd'], db_info['db'])
@@ -127,7 +148,7 @@ class Helper:
                 "desc":db_info["desc"]
             }
         except Exception as ex:
-            print(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
+            logger.error(f"user:{user_id}===>trace id:{trace_id}===>query {fmt_sql} with exception:\n{ex}")
             return {
                 "row_count":0
             }
@@ -137,7 +158,7 @@ class Helper:
 
     @staticmethod
     def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
-        print(f"=======================>正在查询{db_info['desc']}的数据")
+        logger.info(f"=======================>正在查询{db_info['desc']}的数据")
         conn = None
         try:
             conn = mysql.get_conn(db_info['host'], db_info['port'], db_info['user'], db_info['pwd'], db_info['db'])
@@ -148,7 +169,7 @@ class Helper:
             }
             result_queue.put(r)
         except Exception as ex:
-            print(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
+            logger.info(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
             r = {
                 "row_count":0
             }
@@ -210,10 +231,6 @@ class Helper:
             "row_count":len(records)
         }
 
-
-
-
-
     @staticmethod
     def mk_md_table(headers:list, db_result:list, max_row_return:int):
 
@@ -238,7 +255,8 @@ class Helper:
         return md_table
 
 
-def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
+def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
+    logger.info(f"user:{user_id}===>trace id:{trace_id}===>begin to query data")
     bedrock = aws.get('bedrock-runtime')
     bedrock_result = answer_template_sql(bedrock, msg, trace_id)
     if "error" in bedrock_result:
@@ -249,6 +267,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
     if "error" in bedrock_result:
+        logger.info(f"user:{user_id}===>trace id:{trace_id}===>failed to query data")
         return  {
             "content":bedrock_result["error"],
             "mdData":"",
@@ -258,7 +277,6 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
         }
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
-    print(f"{trace_id}========================>fmt sql is {fmt_sql}")
 
     last_item = msg[-1]
     raw_content = last_item['content']
@@ -272,7 +290,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     column_types = bedrock_result['column_type']
     if len(db_infos) == 1:
         db_info = db_infos[0]
-        db_results =Helper.query_db(db_info, fmt_sql)
+        db_results =Helper.query_db(db_info, fmt_sql, user_id, trace_id)
     else:
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
@@ -284,7 +302,6 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     
     md_table = Helper.mk_md_table(cn_columns, db_results, max_row_return)
 
-    print(column_types)
     chart_data = Helper.mk_chart_data(cn_columns,column_types, db_results, max_row_return)
 
     chartType ="BarChartPic" if bedrock_result['chart_type'].find("错误") >=0 else bedrock_result['chart_type']
@@ -304,7 +321,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
     if total_row_count >= max_row_return:
         # 数据量太大，则保存到s3，生成下载链接让客户后台下载
         bucket_name = os.getenv("BUCKET_NAME")
-        load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, str(uuid4()))
+        load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, f"{user_id}_{trace_id}")
 
         result['extra'] = load_url
         many_msg = f"\n数据量较大，默认只显示了 {max_row_return}, 请点击下载查看全部数据。建议使用汇总数据而非明细数据分析"
@@ -315,7 +332,7 @@ def get_result(msg:list,trace_id:str, mode_type: str ='normal'):
 
     else:
         result['extra'] = ""
-
+    logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data")
     return result
 
 
@@ -327,7 +344,6 @@ def answer(
         trace_id:str,
         is_hard_mode:bool):
     # 对问题进行提示词工程并查询bedrock
-    print([item['role'] for item in msg])
     last_item = msg[-1]
     raw_content = last_item['content']
     scenario_str = Helper.build_select_scenario_msg(raw_content, promptConfig)
@@ -340,7 +356,7 @@ def answer(
         "role":"user",
         "content": scenario_str
     })
-    print("begin select scenario")
+    logger.info("begin select scenario")
     scenario = llm.query(questions,bedrock_client=bedrock)
     
 
@@ -348,15 +364,15 @@ def answer(
         # 如果有默认场景就尝试使用默认场景
         if 'DefaulteScenario' in promptConfig["Overall"]:
             error = f"{trace_id}===============>没有找到合适的场景: {scenario}，尝试使用默认场景查询{promptConfig['Overall']['DefaulteScenario']}"
-            print(error)
+            logger.info(error)
             scenario =promptConfig['Overall']['DefaulteScenario']
         else:
             error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
-            print(error)
+            logger.info(error)
             return Helper.bad_response(error=error)
         
 
-    print(f"{trace_id}===============>{scenario} is selected")
+    logger.info(f"{trace_id}===============>{scenario} is selected")
                
 
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
@@ -408,13 +424,13 @@ def answer(
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error = f"{trace_id}===================> 返回的结果不是json\n{result}"
-        print(error)
+        logger.info(error)
         return Helper.bad_response(error=error)
 
     if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
 
         error = f"{trace_id}===================> 返回的结果没有生成SQL"
-        print(error)
+        logger.info(error)
         return Helper.bad_response(error=error)
 
     if 'columnList' in parsed and isinstance(parsed["columnList"], list):
@@ -440,7 +456,6 @@ def answer(
     if is_hard_mode:
         result_j["clarify"] =parsed["clarify"]
 
-    print(result_j)
     return result_j
 
 
@@ -471,14 +486,14 @@ def answer_template_sql(
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error  = f"{trace_id}===================> 没有找到模板问题\n{result}"
-        print(error)
+        logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
     
 
     if "error" in parsed or not bool(parsed["result"]):
         error  = f"{trace_id}===================> 没有找到模板问题\n{parsed['reason']}"
-        print(error)
+        logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
 
@@ -490,7 +505,7 @@ def answer_template_sql(
     template_sql = prompt.template_sql(template_question)
     if template_sql == "":
         error  = f"{trace_id}===================> 模板SQL为空\n{template_question}"
-        print(error)
+        logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
     
@@ -509,7 +524,7 @@ def answer_template_sql(
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error  = f"{trace_id}===================> 没有找到模板sql列信息\n{result}"
-        print(error)
+        logger.info(error)
         return Helper.bad_response(error)
 
     columns = parsed["columns"]

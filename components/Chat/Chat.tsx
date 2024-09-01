@@ -49,7 +49,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     },
     handleUpdateConversation,
     // signOut,
-    // user,
+    user,
     dispatch: homeDispatch,
   } = useContext(HomeContext);
 
@@ -94,8 +94,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         homeDispatch({ field: 'messageIsStreaming', value: true });
         const chatBody: ChatBody = {
           messages: updatedConversation.messages,
-          // userId: user.username,
-          userId: '',
+          userId: user.username,
+          // userId: '',
           modelType: plugin?.id.includes('-hard')
             ? 'bedrock-hard'
             : 'bedrock-normal',

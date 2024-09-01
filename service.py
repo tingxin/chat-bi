@@ -44,8 +44,8 @@ class QueryLLM(Resource):
         json_data = request.get_json()
         mtype = request.args.get('mtype', '')
         trace_id = request.headers.get('X-Trace-Id')
-        data = service.get_result(json_data, trace_id, mtype)
-        print(data)
+        user_id = request.headers.get('X-User-Id')
+        data = service.get_result(json_data, trace_id,user_id, mtype)
         return data, 200
 
 # 将资源添加到API端点
