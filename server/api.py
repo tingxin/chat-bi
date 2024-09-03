@@ -486,7 +486,7 @@ def answer_template_sql(
         clean_result = result.replace('\n', '').replace('    ', '')
         parsed = json.loads(clean_result)
     except json.JSONDecodeError as ex:
-        error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{ex}"
+        error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{clean_result}\n{ex}"
         logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
