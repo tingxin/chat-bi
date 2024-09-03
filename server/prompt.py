@@ -80,6 +80,7 @@ def template_question(question:str):
         "reason":"",
         "result: False
     }}
+    *注意必须只返回return 语句后的对象，而且对象必须能够被json.load("返回的结果")转化成json对象*
     """
     return p
 
