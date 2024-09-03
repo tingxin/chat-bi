@@ -483,9 +483,10 @@ def answer_template_sql(
     result = llm.query(questions,bedrock_client=bedrock)
 
     try:
-        parsed = json.loads(result)
-    except json.JSONDecodeError:
-        error  = f"{trace_id}===================> 没有找到模板问题\n{result}"
+        clean_result = result.replace('\n', '').replace('    ', '')
+        parsed = json.loads(clean_result)
+    except json.JSONDecodeError as ex:
+        error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{ex}"
         logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
@@ -529,7 +530,7 @@ def answer_template_sql(
 
     columns = parsed["columns"]
     columns_ype = parsed["columns_type"]
-    info  = f"{trace_id}===================> 模板SQL为:\n{fmt_sql}"
+    info  = f"{trace_id}===================> 返回的模板SQL为:\n{fmt_sql}"
     logger.info(info)
     result_j = {
       "bedrockSQL": fmt_sql,
