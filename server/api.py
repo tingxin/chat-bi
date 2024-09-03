@@ -378,38 +378,38 @@ def answer(
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
     questions  = list()
     # questions.extend(msg)
-    history_count = int(os.getenv("HISTORY_COUNT", 5))
+    # history_count = int(os.getenv("HISTORY_COUNT", 5))
 
     
-    if len(msg) - history_count>=0:
-        begin_index = len(msg) - history_count
-        bound = history_count
-    else:
-        begin_index = 0
-        bound = len(msg)
+    # if len(msg) - history_count>=0:
+    #     begin_index = len(msg) - history_count
+    #     bound = history_count
+    # else:
+    #     begin_index = 0
+    #     bound = len(msg)
 
-    # 第一和最后一个都必须是user 发起的提问
-    msg_first = msg[begin_index]
-    if msg_first['role'] !="user":
-        begin_index = begin_index -1
-        bound = bound + 1
+    # # 第一和最后一个都必须是user 发起的提问
+    # msg_first = msg[begin_index]
+    # if msg_first['role'] !="user":
+    #     begin_index = begin_index -1
+    #     bound = bound + 1
     
 
-    for i in range(0, bound -1):
-        msg_item = msg[begin_index + i]
+    # for i in range(0, bound -1):
+    #     msg_item = msg[begin_index + i]
         
-        if msg_item["role"] == "assistant":
-            if "clarify" in msg_item:
-                q = msg_item['clarify']
-            else:
-                q = "查询完毕"
-        else:
-            q = msg_item["content"]
+    #     if msg_item["role"] == "assistant":
+    #         if "clarify" in msg_item:
+    #             q = msg_item['clarify']
+    #         else:
+    #             q = "查询完毕"
+    #     else:
+    #         q = msg_item["content"]
 
-        questions.append({
-            "role":msg_item["role"],
-            "content": q
-        })
+    #     questions.append({
+    #         "role":msg_item["role"],
+    #         "content": q
+    #     })
 
     questions.append({
         "role":"user",
