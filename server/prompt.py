@@ -43,12 +43,15 @@ def template_question(question:str):
     for key in templates:
         item = templates[key]
         params = item['params']
-        questions.append(f"<option><q>{key}</q>该问题的参数是：<params>{params}</params>，参数都是不固定的，可变的</option>")
+        questions.append({
+            "question":key,
+            "params":params
+        })
 
     p = f"""
-    备选问题集合是如下：
+    备选问题信息集合是如下：
     {questions}
-    请注意*每个备选问题的参数都是占位符，是一种变量，可以被其他相同类型的数据类型替换*
+    请注意*每个备选问题包括问题及参数,每个备选问题的参数都是占位符，是一种变量，可以被其他相同类型的数据类型替换*
     用户的问题是：<user_questions>{question}</user_questions>
 
     请按如下伪代码思考问题：
@@ -72,6 +75,7 @@ def template_question(question:str):
         return  {{
         "question":option_question,
         "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
+        "reason":"思考问题的过程及解释",
         "result: True
         }}
 
@@ -80,7 +84,7 @@ def template_question(question:str):
         "reason":"",
         "result: False
     }}
-    *注意必须只返回return 语句后的对象，而且对象必须能够被json.load("返回的结果")转化成json对象*
+    *请不要做任何解释，直接返回return 语句后面的对象，并且保证return 后面的对象能够被转成json对象*
     """
     return p
 

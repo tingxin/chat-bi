@@ -499,6 +499,7 @@ def answer_template_sql(
         return Helper.bad_response(error)
 
 
+    logger.info(f"{trace_id}===================> 到模板问题\n{parsed}")
     template_question = parsed["question"]
     params = parsed["params"]
 
