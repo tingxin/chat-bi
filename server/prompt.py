@@ -72,7 +72,6 @@ def template_question(question:str):
         return  {{
         "question":option_question,
         "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
-        "reason":"给出按照伪代码思考的分析过程和中间步骤的结果",
         "result: True
         }}
 
