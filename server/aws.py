@@ -83,12 +83,9 @@ def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
     writer.writerow(headers)
     rows = db_results["rows"]
     for row in rows:
-        items = [item for item in row]
+        items = [str(item) for item in row]
         writer.writerow(items)
     
-    
-
-        
     # 获取CSV内容
     csv_content = output.getvalue()
     output.close()

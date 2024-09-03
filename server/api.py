@@ -529,7 +529,8 @@ def answer_template_sql(
 
     columns = parsed["columns"]
     columns_ype = parsed["columns_type"]
-    
+    info  = f"{trace_id}===================> 模板SQL为:\n{fmt_sql}"
+    logger.info(info)
     result_j = {
       "bedrockSQL": fmt_sql,
       "queryTableName": "template",
