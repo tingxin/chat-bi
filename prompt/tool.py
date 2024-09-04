@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import json
 
-DB_Type = 'MySQL'
+DB_Type = 'Apache Doris'
 
 
 ScenarioSelectionPrompt = f"""你现在是一个{DB_Type}数据仓库查询助理,根据用户的问题和分别每个场景的描述信息，返回用户问题对应场景的名字,
@@ -26,7 +26,7 @@ the sample.you MUST use the english as the column name in the return sql,如果�
 
 HardPrompt = """1. 请注意, 在生成SQL的时候, 这里有几个追加的要求, 具体如下: 先检查问题的句子成分和含义成分是否清晰, 是否有歧义, 
 如果不清晰，或者用户的问题中有你认为不清晰或者错误的地方，你可以要求用户澄清，或者给出用户建议的提问方式，如果你认为用户提问的问题不需要修改，则回答我已经按您的要求返回了数据。将上述信息输出到'clarify'属性中。
-返回的数据中，columnType 列表只标识 对应的列是维度还是度量，例如["维度", "度量"]
+返回的数据中，columnType 列表只标识 对应的列是维度还是度量，例如["维度", "度量"]。
 """
 
 ChartPrompt = """ 请返回需要展示的字段和'LineChartPic, 如果SQL查询的结果适合柱状图, 请返回需要展示的字段和'BarChartPic, 如果SQL查询的结果适合饼图, 

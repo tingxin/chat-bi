@@ -107,6 +107,14 @@ def template_sql_columns(sql:str,raw_question:str):
     """
     return p
 
+def template_fix_query_error(error:str)->str:
+    t = f"""根据前面讨论，你返回了SQL, 但是，{error}, 请根据错误信息，修改SQL，按如下格式返回，并保证返回的格式能够被转成json 对象，不要做任何解释。返回格式:
+    {{
+    "finalSQL":"修正后的sql",
+    "reason":"解释为什么这么修改"
+    }}
+    """
+    return t
 
 def template_sql(question:str):
     templates = conf.get_sql_templates()

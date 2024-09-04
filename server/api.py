@@ -150,7 +150,8 @@ class Helper:
         except Exception as ex:
             logger.error(f"user:{user_id}===>trace id:{trace_id}===>query {fmt_sql} with exception:\n{ex}")
             return {
-                "row_count":0
+                "row_count":0,
+                "error":f"query sql\n:{fmt_sql} meet exception:\n{ex}"
             }
         finally:
             if conn:
@@ -254,6 +255,54 @@ class Helper:
 
         return md_table
 
+    @staticmethod
+    def mk_request_with_history(question_str:str, msg:list)->list:
+        questions  = list()
+        history_count = int(os.getenv("HISTORY_COUNT", 5))
+
+        last_item = None
+        counter = 1 # 不包含最后一个问题，最后一个问题需要pe
+        while counter <  history_count and len(msg) - counter - 1 > 0:
+            msg_item = msg[len(msg) - counter - 1]
+            if last_item:
+                if last_item["role"] == msg_item["role"]:
+                    counter +=1
+                    continue
+
+            last_item = msg_item
+
+            if msg_item["role"] == "assistant":
+                if "finalSQL" in msg_item:
+                    q =f"根据前面的讨论，生成的SQL是:{msg_item['finalSQL']}"
+                elif "clarify" in msg_item:
+                    q = msg_item['clarify']
+                else:
+                    q = "查询完毕"
+            else:
+                q = msg_item["content"]
+
+            questions.append({
+                "role":msg_item["role"],
+                "content": q
+            })
+            counter+=1
+
+        last_item = questions[-1]
+        if last_item["role"] != "user":
+            questions.remove(last_item)
+
+        first = questions[0]
+        if first["role"] == "user":
+            questions.remove(first)
+
+        questions.reverse()
+
+        questions.append({
+            "role":"user",
+            "content": question_str
+        })
+        return questions
+
 
 def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
     logger.info(f"user:{user_id}===>trace id:{trace_id}===>begin to query data")
@@ -294,6 +343,27 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
     else:
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
+
+    # if "error" in db_results:
+    #     fix_query = prompt.template_fix_query_error(db_results["error"])
+    #     questions = Helper.mk_request_with_history(fix_query, msg)
+    #     result = llm.query(questions,bedrock_client=bedrock)
+    #     result = llm.format_bedrock_result(result)
+    #     try:
+    #         parsed = json.loads(result)
+    #     except json.JSONDecodeError:
+    #         error = f"{trace_id}===================> 返回的结果不是json\n{result}"
+    #         logger.info(error)
+
+    #     if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
+
+    #         error = f"{trace_id}===================> 返回的结果没有生成SQL"
+    #         logger.info(error)
+        
+    #     fmt_sql = parsed["finalSQL"]
+    #     db_info = db_infos[0]
+    #     db_results =Helper.query_db(db_info, fmt_sql, user_id, trace_id)
+        
 
     if 'cn_column' in bedrock_result:
         cn_columns = bedrock_result['cn_column']
@@ -376,45 +446,8 @@ def answer(
                
 
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
-    questions  = list()
-    # questions.extend(msg)
-    # history_count = int(os.getenv("HISTORY_COUNT", 5))
+    questions  = Helper.mk_request_with_history(question_str, msg)
 
-    
-    # if len(msg) - history_count>=0:
-    #     begin_index = len(msg) - history_count
-    #     bound = history_count
-    # else:
-    #     begin_index = 0
-    #     bound = len(msg)
-
-    # # 第一和最后一个都必须是user 发起的提问
-    # msg_first = msg[begin_index]
-    # if msg_first['role'] !="user":
-    #     begin_index = begin_index -1
-    #     bound = bound + 1
-    
-
-    # for i in range(0, bound -1):
-    #     msg_item = msg[begin_index + i]
-        
-    #     if msg_item["role"] == "assistant":
-    #         if "clarify" in msg_item:
-    #             q = msg_item['clarify']
-    #         else:
-    #             q = "查询完毕"
-    #     else:
-    #         q = msg_item["content"]
-
-    #     questions.append({
-    #         "role":msg_item["role"],
-    #         "content": q
-    #     })
-
-    questions.append({
-        "role":"user",
-        "content": question_str
-    })
 
     result = llm.query(questions,bedrock_client=bedrock)
     result = llm.format_bedrock_result(result)
