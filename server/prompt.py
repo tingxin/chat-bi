@@ -68,15 +68,14 @@ def template_question(question:str):
         query_set = set(query_lst)
         option_set = set(option_query_lst)
 
-        is_subset = query_set.issubset(option_set)
-        if not is_subset:
+        if query_set !=option_set or len(query_set)!=len(option_set):
             continue
             
         return  {{
         "question":option_question,
         "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
-        "reason":"思考问题的过程及解释",
-        "result: True
+        "reason":"函数执行过程的所有变量的值",
+        "result: 如果query_set 和 option_set*完全相等*则为True,否则一律是False
         }}
 
     return  {{
@@ -84,7 +83,7 @@ def template_question(question:str):
         "reason":"",
         "result: False
     }}
-    *请不要做任何解释，直接返回return 语句后面的对象，并且保证return 后面的对象能够被转成json对象*
+    *请不要做任何解释,直接返回return 语句后面的对象,并且保证return 后面的对象能够被转成json对象*
     """
     return p
 
@@ -110,8 +109,9 @@ def template_sql_columns(sql:str,raw_question:str):
 
 def template_sql(question:str):
     templates = conf.get_sql_templates()
-    if question in templates:
-        return templates[question]["content"]
+    key = str(question)
+    if key in templates:
+        return templates[key]["content"]
 
     return ''
     

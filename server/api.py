@@ -332,7 +332,13 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
 
     else:
         result['extra'] = ""
-    logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data")
+
+
+    try:
+        json_data = json.dumps(result)
+        logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data\n{json_data}")
+    except Exception as ex:
+        logger.error(f"user:{user_id}===>trace id:{trace_id}===>failed to json\n{result}")
     return result
 
 
@@ -499,7 +505,7 @@ def answer_template_sql(
         return Helper.bad_response(error)
 
 
-    logger.info(f"{trace_id}===================> 到模板问题\n{parsed}")
+    logger.info(f"{trace_id}===================> 找到模板问题\n{parsed}")
     template_question = parsed["question"]
     params = parsed["params"]
 
