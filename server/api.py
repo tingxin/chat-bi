@@ -481,7 +481,7 @@ def answer_template_sql(
 
 
     result = llm.query(questions,bedrock_client=bedrock)
-
+    
     try:
         clean_result = result.replace('\n', '').replace('    ', '')
         parsed = json.loads(clean_result)
@@ -499,7 +499,7 @@ def answer_template_sql(
         return Helper.bad_response(error)
 
 
-    logger.info(f"{trace_id}===================> 到模板问题\n{parsed}")
+    logger.info(f"{trace_id}===================> 找到模板问题\n{parsed}")
     template_question = parsed["question"]
     params = parsed["params"]
 
