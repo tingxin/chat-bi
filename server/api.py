@@ -531,7 +531,7 @@ def answer_template_sql(
     try:
         parsed = json.loads(result)
     except json.JSONDecodeError:
-        error  = f"{trace_id}===================> 没有找到模板sql列信息\n{result}"
+        error  = f"{trace_id}===================> 没有找到模板SQL列信息\n{result}"
         logger.info(error)
         return Helper.bad_response(error)
 
