@@ -44,3 +44,7 @@ server/__pycache__/*
 server/db/__pycache__/*
 __pycache__/*
 prompt/__pycache__/*
+prompt/prompt_conf/*
+chatbi.log
+chatbi.log.*
+chatbi_test.log

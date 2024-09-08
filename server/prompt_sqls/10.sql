@@ -1,7 +1,5 @@
 SELECT
-    ps.org_id
-    ,REGEXP_REPLACE(ps.org_name, '[\\n\\r\\t]',' ') as org_name
-    ,ps.user_id
+     ps.user_id
     ,ps.user_account
     ,ps.ps_id
     ,ps.ps_name
@@ -15,9 +13,9 @@ SELECT
     ,dev_cnt
 FROM (
     SELECT
-        suo.org_id, org_name, user_id, user_account, dev.ps_id
+         user_id, user_account, dev.ps_id
         , dev.ps_name, recore_create_time,ps_country_name,ps_location
-        , SUM(total_installed_power)   AS total_installed_power
+        , SUM(total_installed_power) AS total_installed_power
         , SUM(IF(dev_type_id='1',1,0)) AS nibianqi_cnt
         , SUM(IF(dev_type_id='14',1,0)) AS chunengnibianqi_cnt
         , SUM(IF(dev_type_id in ('9','22'),1,0)) AS tongxunshebei_cnt
@@ -44,11 +42,11 @@ FROM (
     ) pso ON sub.sub_org_id = pso.org_id
     LEFT JOIN (
         SELECT
-            ps_id, ps_name, recore_create_time,dev_type_id,ps_country_name,ps_location
-            , total_installed_power
-        FROM dwd_sungrow.dwd_pub_ps_dev_power_station_d WHERE pt=date_sub(current_date(), 1)
+            ps_id, ps_name, recore_create_time,ps_country_name,ps_location
+            , total_installed_power,dev_type_id
+        FROM dwd_sungrow.dwd_pub_ps_dev_power_station_d WHERE pt=date_sub(current_date(), 1) AND is_virtual_unit=0
     ) dev ON pso.ps_id = dev.ps_id
     WHERE sub.org_id IS NOT NULL AND dev.ps_id IS NOT NULL
-    GROUP BY suo.org_id, org_name, user_id, user_account
+    GROUP BY  user_id, user_account
         , dev.ps_id, dev.ps_name, recore_create_time,ps_country_name,ps_location
 ) ps

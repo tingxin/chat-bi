@@ -1,63 +1,105 @@
-from server import prompt
-from server.conf import load_env, load_sql_templates
-from server import aws, llm
+import os
 import json
+import pandas as pd
+from server import testcases
+from server import conf
+from server import aws, llm
+import logging
+from logging.handlers import RotatingFileHandler
 
-load_env()
-load_sql_templates()
+logger = logging.getLogger(__name__)
 
-def chat():
-    raw_content = "用户账号为88888下机型是p123和sg456的组织id、组织名称、电站id"
-        # 对问题进行提示词工程并查询bedrock
-    bedrock = aws.get('bedrock-runtime')
+# 设置日志级别
+logger.setLevel(logging.INFO)
+# 创建一个handler，用于写入日志文件
+handler = RotatingFileHandler('logs/chatbi_test.log', maxBytes=100000, backupCount=3)
+logger.addHandler(handler)
 
-    question_prompt = prompt.template_question(raw_content)
 
-    questions  = list()
-    # questions.extend(msg)
-    questions.append({
-        "role":"user",
-        "content": question_prompt
-    })
-    result = llm.query(questions,bedrock_client=bedrock)
+# 创建一个handler，用于将日志输出到控制台
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+logger.addHandler(console_handler)
 
-    try:
-        parsed = json.loads(result)
-    except json.JSONDecodeError:
-        print(f"===================> 没有找到模板问题\n{result}")
-        # 如果解析失败，返回False
-        return ""
-    
-    # template_question = parsed["question"]
-    # columns = parsed["params"]
+# 定义日志格式
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
 
-    # template_sql = prompt.template_sql(template_question)
-    # if template_sql == "":
-    #     return ""
-    
-    # fmt_sql = template_sql.format(*columns)
 
-    # sql_column_prompt = prompt.template_sql_columns(fmt_sql, raw_content)
 
-    # questions  = list()
-    # # questions.extend(msg)
-    # questions.append({
-    #     "role":"user",
-    #     "content": sql_column_prompt
-    # })
-    # result = llm.query(questions,bedrock_client=bedrock)
-    # try:
-    #     parsed = json.loads(result)
-    # except json.JSONDecodeError:
-    #     print(f"===================> 没有找到模板sql列信息\n{result}")
-    #     # 如果解析失败，返回False
-    #     return ""
+# test_calculator.py
+import unittest
+import os
 
-    print(parsed)
-    
+conf.load_env()
+conf.load_sql_templates()
 
-   
+TEST_CASE_FOLDER = "server/testcases"
 
-chat()
+class TestSQL(unittest.TestCase):
 
+    def setUp(self):
+        data_files_folder = f"{os.getcwd()}/{TEST_CASE_FOLDER}"
+        files_and_folders = os.listdir(data_files_folder)
+        docs = [f"{data_files_folder}/{item}" for item in files_and_folders if item.endswith(".xlsx") or item.endswith(".csv")]
+        print(docs)
+        cases = list()
+        for doc in docs:
+            df = pd.read_excel(doc, sheet_name=0, header=None)
+            print(len(df))
+            for row_index in range(1, len(df)):
+                question, sql_result = df.iloc[row_index, 0], df.iloc[row_index, 1]
+                cases.append(
+                    {
+                        "question":question,
+                        "expected":sql_result
+                    }
+                )
+        self.cases = cases
+
+
+
+    def test_sql(self):
+
+        bedrock_client = aws.get('bedrock-runtime')
+        for test_case in self.cases:
+            logger.info(test_case['question'])
+            trace_id = "test_0101001"
+            msg = [
+                {
+                    "role":"user",
+                    "content":test_case['question']
+                }
+            ]
+            fmt_sql = testcases.gen_sql(trace_id, msg)
+            expected = test_case["expected"]
+
+            compare = f"""<sql>{fmt_sql}</sql><sql>{expected}</sql>请严格按如如下格式返回信息:
+            {{
+                "result":值是一个bool值,如果上述两个sql在mysql数据库查询后,返回的结果是一致,result 为True 否则为False,
+                "reason":"解释原因"
+            }},不要做其他任何解释"""
+
+            msg2 = [{
+                "role":"user",
+                "content":compare
+            }]
+            
+            try:
+                result = llm.query(msg2, bedrock_client)
+                parsed = json.loads(result)
+
+                r = parsed["result"]
+                logger.info(r)
+                reason = parsed["reason"]
+                self.assertEqual(r, True)
+            except AssertionError as e:
+                logger.error(reason)
+            except Exception as ex:
+                logger.error(ex)
+
+
+if __name__ == '__main__':
+    unittest.main()
 
