@@ -4,9 +4,6 @@ import os
 from . import aws
 from . import conf
 
-
-
-
 _prompt_cache = dict()
 
 # 从 S3 读取 JSON 文件
@@ -36,59 +33,56 @@ def get(file_key)->dict:
 
     return _prompt_cache[file_key]
 
+
+def _build_single_question_prompt()->str:
+    p = f"""
+    def find_meta(option_question:str)->dict:
+        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions
+        result['query_count'] = len(option_query_lst)
+        result['condition_count'] = len(option_query_lst)
+
+        condition_cache = dict()
+        params = list()
+        for condition in option_query_conditions:
+            对 condition 分析出主语 condition_own,谓语 oper,参数 param
+            condition_cache[condition_own+oper]=param
+
+        option_query_lst.sort()
+
+        result['conditions'] = condition_cache
+        result['querys'] = option_query_lst
+        return result  
+    """
+    return "find_meta", p
+
+
 def build_template_question_meta_prompt(question:str)->str:
+    func_name, func = _build_single_question_prompt()
     p = f"""
     有如下伪代码编写的函数：
-    def find_meta(option_question:str)->dict:
-        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions
-        result['query_count'] = len(option_query_lst)
-        result['condition_count'] = len(option_query_lst)
-        condition_sub = list()
-        for condition in option_query_conditions:
-            对 condition 分析出主语 condition_own,谓语 oper,参数 param
-            condition_sub.append(condition_own+oper)
-
-        condition_sub.sort()
-        option_query_lst.sort()
-
-        result['conditions'] = condition_sub
-        result['querys'] = option_query_lst
-        return result  
-    
-    *你的任务是，执行函数 find_meta({question}) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*  
+    {func}
+    *你的任务是，执行函数 {func_name}({question}) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*  
     """
+    return p
 
 def build_template_questions_meta_prompt(o_question:list)->str:
+    func1_name, func1 = _build_single_question_prompt()
     p = f"""
     有如下两个伪代码编写的函数：
-    def find_meta(option_question:str)->dict:
-        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions
-        result['query_count'] = len(option_query_lst)
-        result['condition_count'] = len(option_query_lst)
-        condition_sub = list()
-        for condition in option_query_conditions:
-            对 condition 分析出主语 condition_own,谓语 oper,参数 param
-            condition_sub.append(condition_own+oper)
-
-        condition_sub.sort()
-        option_query_lst.sort()
-
-        result['conditions'] = condition_sub
-        result['querys'] = option_query_lst
-        return result  
-
+    {func1}
     def find_multiple_meta(option_questions:list)->list:
-        result = list()
+        result = dict()
         for option_question_item in option_questions:
             option_question = option_question_item['question'] 
             option_params = option_question_item['params'] 
-            meta = find_meta(option_question)
-            result.append(meta)
+            meta = {func1_name}(option_question)
+            result[option_question] = meta
         return result
             
     
     *你的任务是，执行函数 find_multiple_meta({o_question}) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*  
     """
+    return p
 
 def build_template_options_question():
     questions = list()
@@ -102,16 +96,8 @@ def build_template_options_question():
             "params":params
         })
 
-    p = f"""
-    问题信息集合是如下：
-    inputs = {questions}
-
-
-
-    def find_
-
-    *你的任务是，执行函数 find_meta(questions) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*
-    """
+    p = build_template_questions_meta_prompt(questions)
+    return p
 
 
 def template_question(question:str):
