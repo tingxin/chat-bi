@@ -265,17 +265,18 @@ class Helper:
             })
             counter+=1
 
+        questions.reverse()
         if len(questions) > 0:
-            last_item = questions[-1]
-            if last_item["role"] != "user":
-                questions.remove(last_item)
-
             first = questions[0]
-            if first["role"] == "user":
+            if first["role"] != "user":
                 questions.remove(first)
 
-            questions.reverse()
+        if len(questions) > 0:
+            last = questions[-1]
+            if last["role"] == "user":
+                questions.remove(last)
 
+            
         questions.append({
             "role":"user",
             "content": question_str

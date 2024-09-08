@@ -4,9 +4,6 @@ import os
 from . import aws
 from . import conf
 
-
-
-
 _prompt_cache = dict()
 
 # 从 S3 读取 JSON 文件
@@ -36,6 +33,84 @@ def get(file_key)->dict:
 
     return _prompt_cache[file_key]
 
+def template_fix_query_error(fmtsql:str, error_str:str):
+    p = f"""
+    数据库在执行下面sql\n:{fmtsql}\n报如下错误:\n{error_str}。请修改sql从而解决错误。以如下格式返回，并且保证返回的格式能够被转成json对象，不要做其他任何解释。返回的格式:\n
+    {{
+    "finalSQL":"修复后的SQL",
+    "reason":"这样修改的原因"
+    }}
+    """
+    return p
+
+
+def _build_single_question_prompt()->str:
+    p = f"""
+    def find_meta(option_question:str)->dict:
+        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions
+        result['query_count'] = len(option_query_lst)
+        result['condition_count'] = len(option_query_lst)
+
+        condition_cache = dict()
+        for condition in option_query_conditions:
+            对 condition 分析出主语 condition_own,谓语 oper,参数 param
+            请尝试理解谓语oper含义，把谓语动词oper 翻译成sql中的条件操作符(例如:=,>,<,in,!=), 举个例子，'是'翻译成=, 但是如果后面的参数是列表，则应该把是翻译成in
+            将翻译好的oper赋值给变量operator
+            condition_cache[condition_own+operator]=param
+
+        option_query_lst.sort()
+
+        result['conditions'] = condition_cache
+        result['querys'] = option_query_lst
+        return result  
+    """
+    return "find_meta", p
+
+
+def build_template_question_meta_prompt(question:str)->str:
+    func_name, func = _build_single_question_prompt()
+    p = f"""
+    有如下伪代码编写的函数：
+    {func}
+    *你的任务是，执行函数 {func_name}({question}) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*  
+    """
+    return p
+
+def build_template_questions_meta_prompt(o_question:list)->str:
+    func1_name, func1 = _build_single_question_prompt()
+    p = f"""
+    有如下两个伪代码编写的函数：
+    {func1}
+    def find_multiple_meta(option_questions:list)->list:
+        result = dict()
+        for option_question_item in option_questions:
+            option_question = option_question_item['question'] 
+            option_params = option_question_item['params'] 
+            meta = {func1_name}(option_question)
+            result[option_question] = meta
+        return result
+            
+    
+    *你的任务是，执行函数 find_multiple_meta({o_question}) 并返回结果,保证返回的结果可以转成json对象,并且不要做任何解释*  
+    """
+    return p
+
+def build_template_options_question():
+    questions = list()
+    
+    templates = conf.get_sql_templates()
+    for key in templates:
+        item = templates[key]
+        params = item['params']
+        questions.append({
+            "question":key,
+            "params":params
+        })
+
+    p = build_template_questions_meta_prompt(questions)
+    return p
+
+
 def template_question(question:str):
     questions = list()
     
@@ -54,37 +129,42 @@ def template_question(question:str):
     请注意*每个备选问题包括问题及参数,每个备选问题的参数都是占位符，是一种变量，可以被其他相同类型的数据类型替换*
     用户的问题是：<user_questions>{question}</user_questions>
 
-    请按如下伪代码思考问题：
+    有如下伪代码编写的函数：
+    def find(user_question, option_questions):
+        分析出user_question中要查询的信息集合，赋予变量 query_lst。 查询条件集合赋予变量query_conditions
+        for option_question_item in option_questions:
+            option_question = option_question_item['question']
+            option_question_params =option_question_item['params']
+            对option_question分析出查询信息集合 option_query_lst, option_query_conditions
+            if len(query_conditions) != len(option_query_conditions):
+                continue
+            if 对于用户问题的每一个查询条件，当前备选问题的查询条件中，没有任何一个条件的主语和谓语和用户问题的查询条件主语谓语相同(参数可以不同):
+                continue
 
-    分析出用户的问题中那些是要查询信息集合 query_lst, 查询条件集合 query_conditions
-    for option_question(备选问题) in questions(备选问题集合):
-        对option_question分析出查询信息集合 option_query_lst, option_query_conditions
-        if len(query_conditions) != len(option_query_conditions):
-            continue
-        if 对于用户问题的每一个查询条件，当前备选问题的查询条件中，没有任何一个条件的主语和谓语和用户问题的查询条件主语谓语相同(参数可以不同)：
-            continue
+            # 将列表转换为集合
+            query_set = set(query_lst)
+            option_set = set(option_query_lst)
 
-        # 将列表转换为集合
-        query_set = set(query_lst)
-        option_set = set(option_query_lst)
+            if not (query_set 与 option_set 完全相等)
+                continue
 
-        is_subset = query_set.issubset(option_set)
-        if not is_subset:
-            continue
-            
+            if len(query_set) != len(option_set):
+                continue
+          
+            return  {{
+            "question":option_question,
+            "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
+            "reason":"变量query_conditions,option_query_conditions,query_set,option_set的值,以及query_set,option_set是否完全相等",
+            "result: True if query_set 完全相等 option_set else False
+            }}
+
         return  {{
-        "question":option_question,
-        "params":["您从用户的问题中，参考备选问题及它的参数列表，找到的查询参数列表"],
-        "reason":"思考问题的过程及解释",
-        "result: True
+            "error":"未能找到匹配的问题",
+            "reason":"",
+            "result: False
         }}
 
-    return  {{
-        "error":"未能找到匹配的问题",
-        "reason":"",
-        "result: False
-    }}
-    *请不要做任何解释，直接返回return 语句后面的对象，并且保证return 后面的对象能够被转成json对象*
+    *已知<condition>user_query={question}</condition><condition>options={questions}<condition>, 你的任务是请返回 find(user_query, options)的执行结果。 请不要做任何解释，不要修改函数的逻辑,并且保证返回结果能够被转成json对象*
     """
     return p
 
@@ -107,14 +187,6 @@ def template_sql_columns(sql:str,raw_question:str):
     """
     return p
 
-def template_fix_query_error(error:str)->str:
-    t = f"""根据前面讨论，你返回了SQL, 但是，{error}, 请根据错误信息，修改SQL，按如下格式返回，并保证返回的格式能够被转成json 对象，不要做任何解释。返回格式:
-    {{
-    "finalSQL":"修正后的sql",
-    "reason":"解释为什么这么修改"
-    }}
-    """
-    return t
 
 def template_sql(question:str):
     templates = conf.get_sql_templates()

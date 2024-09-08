@@ -35,7 +35,11 @@ formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
+meta = dict()
 
+def init():
+    logger.info("正在加载和分析模板SQL")
+    _load_template_questions()
 
 def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
     logger.info(f"user:{user_id}===>trace id:{trace_id}===>begin to query data")
@@ -76,8 +80,8 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
 
-    if "error" in db_results:
-        db_results = retry_when_sql_error(user_id, trace_id,msg, db_results, db_infos, bedrock)
+    # if "error" in db_results:
+    #     db_results = retry_when_sql_error(user_id, trace_id,msg,fmt_sql, db_results, db_infos, bedrock)
 
 
     if 'cn_column' in bedrock_result:
@@ -216,38 +220,43 @@ def answer_template_sql(
 
 
     # 开始查询问题对应的模板问题
-    question_prompt = prompt.template_question(raw_content)
+    question_prompt = prompt.build_template_question_meta_prompt(raw_content)
 
-    questions  = list()
-    # questions.extend(msg)
-    questions.append({
+    questions=[{
         "role":"user",
         "content": question_prompt
-    })
+    }]
 
 
     result = llm.query(questions,bedrock_client=bedrock)
 
     try:
-        clean_result = result.replace('\n', '').replace('    ', '')
-        parsed = json.loads(clean_result)
+        parsed = json.loads(result)
     except json.JSONDecodeError as ex:
-        error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{clean_result}\n{ex}"
-        logger.info(error)
-        # 如果解析失败，返回False
-        return Helper.bad_response(error)
-    
-
-    if "error" in parsed or not bool(parsed["result"]):
-        error  = f"{trace_id}===================> 没有找到模板问题\n{parsed['reason']}"
+        error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{result}\n{ex}"
         logger.info(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
 
 
-    logger.info(f"{trace_id}===================> 到模板问题\n{parsed}")
-    template_question = parsed["question"]
-    params = parsed["params"]
+    template_question =  _find_template(parsed)
+
+    if not template_question:
+        error  = f"{trace_id}===================> 没有找到模板问题:\n{parsed}"
+        logger.info(error)
+        # 如果解析失败，返回False
+        return Helper.bad_response(error)
+
+    logger.info(f"{trace_id}===================> 找到模板问题\n{parsed}")
+    params = parsed["conditions"].values()
+    new_params = list()
+    for param in params:
+        if isinstance(param, list):
+            new_p = ",".join(param)
+            new_params.append(new_p)
+        else:
+            new_params.append(param)
+
 
     # 获取模板问题对应的模板SQL
     template_sql = prompt.template_sql(template_question)
@@ -257,7 +266,7 @@ def answer_template_sql(
         # 如果解析失败，返回False
         return Helper.bad_response(error)
     
-    fmt_sql = template_sql.format(*params)
+    fmt_sql = template_sql.format(*new_params)
 
     sql_column_prompt = prompt.template_sql_columns(fmt_sql, raw_content)
 
@@ -288,29 +297,98 @@ def answer_template_sql(
     }
     return result_j
 
-def retry_when_sql_error(user_id:str, trace_id:str, msg:list,raw_db_results:dict, db_infos:list, bedrock_client):
-        fix_query = prompt.template_fix_query_error(raw_db_results["error"])
-        questions = Helper.mk_request_with_history(fix_query, msg)
-        result = llm.query(questions,bedrock_client=bedrock_client)
-        result = llm.format_bedrock_result(result)
-        try:
-            parsed = json.loads(result)
-        except json.JSONDecodeError:
-            error = f"{trace_id}===================> 返回的结果不是json\n{result}"
-            logger.info(error)
+def retry_when_sql_error(user_id:str, trace_id:str, msg:list,fmtsql:str, raw_db_results:dict, db_infos:list, bedrock_client):
+    fix_query = prompt.template_fix_query_error(fmtsql, raw_db_results["error"])
+    questions = Helper.mk_request_with_history(fix_query, msg)
+    result = llm.query(questions,bedrock_client=bedrock_client)
+    result = llm.format_bedrock_result(result)
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        error = f"{trace_id}===================> 返回的结果不是json\n{result}"
+        logger.info(error)
 
-        if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
-            error = f"{trace_id}===================> 返回的结果没有生成SQL"
-            logger.error(error)
-            return {
-                "row_count":0,
-                "error":error
-            }
-        else:
-            fmt_sql = parsed["finalSQL"]
-            db_info = db_infos[0]
-            db_results =Helper.query_db(db_info, fmt_sql, user_id, trace_id)
-            return db_results
+    if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
+        error = f"{trace_id}===================> 返回的结果没有生成SQL"
+        logger.error(error)
+        return {
+            "row_count":0,
+            "error":error
+        }
+    else:
+        fmt_sql = parsed["finalSQL"]
+        db_info = db_infos[0]
+        db_results =Helper.query_db(db_info, fmt_sql, user_id, trace_id)
+        return db_results
+
+
+def _load_template_questions():
+    if not meta:
+        bedrock = aws.get('bedrock-runtime')
+        p = prompt.build_template_options_question()
+        msg = [{
+            "role":"user",
+            "content":p
+        }]
+    
+        try:
+            result_str = llm.query(msg, bedrock)
+            parsed = json.loads(result_str)
+        except Exception as ex:
+            logger.error(f"分析模板问题出现错误:{ex}")
+            return None
+
+        logger.info(parsed)
+        # templates = conf.get_sql_templates()
+        # for key in parsed:
+        #     params1 = templates[key]['params']
+        #     item = parsed[key]
+        #     conditions = item["conditions"]
+
+        for key in parsed:
+            meta[key] = parsed[key]
+            meta[key]['querys'].sort()
+
+def _compare_condition(con1, con2)->bool:
+    for key in con1:
+        if key not in con2:
+            return False
+    return True
+
+
+def _find_template(user_question_meta):
+    querys = user_question_meta["querys"]
+    conditions = user_question_meta["conditions"]
+
+    for key in meta:
+        tp = meta[key]
+        if len(conditions)!=len(tp['conditions']):
+            continue
+
+        if len(querys)!=len(tp['querys']):
+            continue
+
+        if not _compare_condition(conditions, tp['conditions']):
+            logger.info("查询条件不同")
+            continue
+        
+        
+        querys.sort()
+        if querys != tp['querys']:
+            logger.info("查询内容不同")
+            continue
+
+        return key
+
+    return ""
+
+        
+
+
+
+
+
+
 
     
 
