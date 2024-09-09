@@ -61,6 +61,8 @@ class TestSQL(unittest.TestCase):
 
 
     def test_sql(self):
+        success = 0
+        failed = 0
         bedrock_client = aws.get('bedrock-runtime')
         for test_case in self.cases:
             logger.info(test_case['question'])
@@ -93,15 +95,15 @@ class TestSQL(unittest.TestCase):
                 logger.info(r)
                 reason = parsed["reason"]
                 self.assertEqual(r, True)
+                success +=1
             except AssertionError as e:
                 logger.warn(f"期望的SQL:\n{expected}")
                 logger.warn(f"实际的SQL:\n{fmt_sql}")
                 logger.error(reason)
+                failed +=1
             except Exception as ex:
                 logger.error(ex)
-
-    def test_template_meata(self):
-        api.load_template_questions()
+        logger.info(f"共运行 {success+failed} 测试用例,成功 {success}, 失败 {failed}")
 
 
 if __name__ == '__main__':
