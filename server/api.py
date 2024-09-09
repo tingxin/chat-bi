@@ -80,8 +80,8 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
         db_results= Helper.query_many_db(db_infos, fmt_sql)
         db_results = Helper.merge_data(db_results, columns, column_types)
 
-    # if "error" in db_results:
-    #     db_results = retry_when_sql_error(user_id, trace_id,msg,fmt_sql, db_results, db_infos, bedrock)
+    if "error" in db_results:
+        db_results = retry_when_sql_error(user_id, trace_id,msg,fmt_sql, db_results, db_infos, bedrock)
 
 
     if 'cn_column' in bedrock_result:

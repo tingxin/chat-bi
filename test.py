@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from server import testcases
 from server import conf
-from server import aws, llm
+from server import aws, llm, api
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -61,7 +61,6 @@ class TestSQL(unittest.TestCase):
 
 
     def test_sql(self):
-
         bedrock_client = aws.get('bedrock-runtime')
         for test_case in self.cases:
             logger.info(test_case['question'])
@@ -75,7 +74,7 @@ class TestSQL(unittest.TestCase):
             fmt_sql = testcases.gen_sql(trace_id, msg)
             expected = test_case["expected"]
 
-            compare = f"""<sql>{fmt_sql}</sql><sql>{expected}</sql>请严格按如如下格式返回信息:
+            compare = f"""期望的<sql>{expected}</sql>实际的<sql>{fmt_sql}</sql>请严格按如如下格式返回信息:
             {{
                 "result":值是一个bool值,如果上述两个sql在mysql数据库查询后,返回的结果是一致,result 为True 否则为False,
                 "reason":"解释原因"
@@ -95,9 +94,14 @@ class TestSQL(unittest.TestCase):
                 reason = parsed["reason"]
                 self.assertEqual(r, True)
             except AssertionError as e:
+                logger.warn(f"期望的SQL:\n{expected}")
+                logger.warn(f"实际的SQL:\n{fmt_sql}")
                 logger.error(reason)
             except Exception as ex:
                 logger.error(ex)
+
+    def test_template_meata(self):
+        api.load_template_questions()
 
 
 if __name__ == '__main__':

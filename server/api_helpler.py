@@ -129,7 +129,7 @@ class Helper:
             logger.error(f"user:{user_id}===>trace id:{trace_id}===>query {fmt_sql} with exception:\n{ex}")
             return {
                 "row_count":0,
-                "error":f"query sql\n:{fmt_sql} meet exception:\n{ex}"
+                "error":ex
             }
         finally:
             if conn:
@@ -150,7 +150,8 @@ class Helper:
         except Exception as ex:
             logger.info(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
             r = {
-                "row_count":0
+                "row_count":0,
+                "error":ex
             }
         finally:
             if conn:

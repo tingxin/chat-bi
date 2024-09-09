@@ -15,10 +15,8 @@ api = Api(app)
 
 conf.load_env()
 conf.load_sql_templates()
+service.init()
 
-
-def load_prompt_conf():
-    pass
 
 # 创建一个资源
 class HelloWorld(Resource):
