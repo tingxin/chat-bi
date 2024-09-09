@@ -82,6 +82,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
 
     if "error" in db_results:
         db_results = retry_when_sql_error(user_id, trace_id,msg,fmt_sql, db_results, db_infos, bedrock)
+        fmt_sql = db_results['finalSQL']
 
 
     if 'cn_column' in bedrock_result:
@@ -319,6 +320,7 @@ def retry_when_sql_error(user_id:str, trace_id:str, msg:list,fmtsql:str, raw_db_
         fmt_sql = parsed["finalSQL"]
         db_info = db_infos[0]
         db_results =Helper.query_db(db_info, fmt_sql, user_id, trace_id)
+        db_results['finalSQL'] = fmt_sql
         return db_results
 
 
