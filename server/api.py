@@ -122,7 +122,8 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
 
     else:
         result['extra'] = ""
-
+        
+    logger.info(result)
     logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data")
     return result
 
