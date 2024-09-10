@@ -38,12 +38,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       'X-User-Id': userId,
       'Content-Type': 'application/json'
     };
+    console.log('request msg >>> ', headers)
     const response = await http.post(`/queryllm?mtype=${modelType}`, messages, { headers });
-    console.log('answer data >>> ', response.data);
+    console.log('answer response >>> ', response);
     res.status(200).json(response.data);
 
   } catch (error) {
-    console.error(error);
+    console.error('answer error >>> ', error);
     if (error instanceof BedrockError) {
       res.status(500).json({ status: 500, statusText: error.message });
     } else {
