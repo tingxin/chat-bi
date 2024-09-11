@@ -8,10 +8,15 @@
 
 2. 启动docker
 ```
-docker build -t text2sql .
+docker build -t text2sql_dev .
 
 docker run --env-file=.env -p 5010:8900  --name textdemo1 text2sql
 docker run --env-file=.env -p 5017:8900  --name textdemo2 text2sql_dev
+
+
+docker build -f DockerfileServer -t text2sql_server .
+
+docker run -p 5018:5018 -v ~/~work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
 ```
 
 使用浏览器打开

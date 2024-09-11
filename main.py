@@ -13,7 +13,7 @@ app = Flask(__name__)
 api = Api(app)
 
 
-conf.load_env()
+conf.load_env(f"{os.getcwd()}/.env")
 conf.load_sql_templates()
 service.init()
 
@@ -60,4 +60,4 @@ if __name__ == '__main__':
     parts = server_host.split(":")
     host = parts[0]
     port = int(parts[1])
-    app.run(debug=True, host=host, port=port)
+    app.run(host=server_host, port=port)
