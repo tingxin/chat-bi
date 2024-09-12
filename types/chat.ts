@@ -3,7 +3,8 @@ export interface Message {
   content: string;
   sql?: string;
   chartData?: any[];
-  extra?: string;
+  extra?: string,
+  chartType?: string;
 }
 
 export type Role = 'assistant' | 'user';

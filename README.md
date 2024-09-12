@@ -16,7 +16,9 @@ docker run --env-file=.env -p 5017:8900  --name textdemo2 text2sql_dev
 
 docker build -f DockerfileServer -t text2sql_server .
 
-docker run -p 5018:5018 -v ~/~work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
+docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
+
+docker run -p 5018:80  --name textdemoserver text2sql_server
 ```
 
 使用浏览器打开
@@ -28,5 +30,6 @@ ip:5017
 1. 进入prompt文件夹
 2. 参考README.md文件配置数据
 3. 重新运行docker 
+
 
 
