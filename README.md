@@ -6,6 +6,11 @@
 1. 配置环境变量
 进入.env文件，根据注释提供aws ak, sk等信息
 
+
+# 如果在中国区，请手动执行
+```
+git clone -b v1.7.4 --depth 1 https://github.com/facebookresearch/faiss.git deps/faiss
+```
 2. 启动docker
 ```
 docker build -t text2sql_dev .
