@@ -811,6 +811,7 @@ const getS3JsonFile = async (fileName: string | undefined) => {
       Bucket: BUCKET_NAME,
       Key: fileName,
     };
+    const s3Client = new S3Client(AWS_PARAM);
     const command = new GetObjectCommand(getObjectParams);
     const fileInfo: any = await s3Client.send(command);
     let fileResultStr = '';
