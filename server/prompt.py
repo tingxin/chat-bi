@@ -47,7 +47,7 @@ def template_fix_query_error(fmtsql:str, error_str:str):
 def _build_single_question_prompt()->str:
     p = f"""
     def find_meta(option_question:str)->dict:
-        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions
+        对option_question分析出查询信息集合:option_query_lst, 查询条件集合:option_query_conditions,分析条件集合的时候，需要注意，每个条件必须有一个主语，一个谓语，一个参数，同一个参数只能属于同一个主语
         result['query_count'] = len(option_query_lst)
         result['condition_count'] = len(option_query_lst)
 
