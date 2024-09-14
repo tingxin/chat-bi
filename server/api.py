@@ -111,7 +111,11 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
     if total_row_count >= max_row_return:
         # 数据量太大，则保存到s3，生成下载链接让客户后台下载
         bucket_name = os.getenv("BUCKET_NAME")
-        load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, f"{user_id}_{trace_id}")
+        download_host =os.getenv("DOWNLOAD_HOST")
+        if download_host:
+            load_url =  aws.save_2_local(cn_columns, db_results, f"{user_id}_{trace_id}")
+        else:
+            load_url =  aws.upload_csv_to_s3(cn_columns, db_results, bucket_name, f"{user_id}_{trace_id}")
 
         result['extra'] = load_url
         many_msg = f"\n数据量较大，默认只显示了 {max_row_return}, 请点击下载查看全部数据。建议使用汇总数据而非明细数据分析"

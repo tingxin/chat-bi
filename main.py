@@ -60,4 +60,4 @@ if __name__ == '__main__':
     parts = server_host.split(":")
     host = parts[0]
     port = int(parts[1])
-    app.run(host=server_host, port=port)
+    app.run(host="0.0.0.0", port=port)
