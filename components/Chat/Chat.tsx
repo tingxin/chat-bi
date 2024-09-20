@@ -220,6 +220,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                 sql: answerObj.sql,
                 chartData,
                 chartType: answerObj.chartType,
+                extra: answerObj.extra,
               },
             ];
             updatedConversation = {
@@ -240,6 +241,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     sql: answerObj.sql,
                     chartData,
                     chartType: answerObj.chartType,
+                    extra: answerObj.extra,
                   };
                 }
                 return message;
