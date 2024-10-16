@@ -10,7 +10,6 @@
 ```
 docker build -t text2sql_dev .
 
-docker run --env-file=.env -p 5010:8900  --name textdemo1 text2sql
 docker run --env-file=.env -p 5017:8900  --name textdemo2 text2sql_dev
 
 
@@ -18,7 +17,6 @@ docker build -f DockerfileServer -t text2sql_server .
 
 docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
 
-docker run -p 5018:80  --name textdemoserver text2sql_server
 ```
 
 使用浏览器打开
@@ -31,5 +29,10 @@ ip:5017
 2. 参考README.md文件配置数据
 3. 重新运行docker 
 
+
+## 自动生成提示词
+python3 prompt_gen.py template --scenario nitto --tables nitto_order
+
+python3 prompt_gen.py prompt
 
 
