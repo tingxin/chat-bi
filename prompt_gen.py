@@ -50,38 +50,51 @@ def template_command(args):
 
     table_names = tables
     wb = Workbook()
-    max_columns = 45
     tables_desc = list()
     for table_name in table_names:
         print(f"开始处理表{table_name}...")
-        schema = gen.get_table_schema(table_name, conn, max_columns)
+        bedrock = aws.get('bedrock-runtime')
 
-        sample_data = gen.get_sample_data(table_name, schema, conn)
-        pmt = gen.PROMPT_F.format(table_name, schema, sample_data)
-
+        schema = gen.get_table_schema(table_name, conn)
         schema_search = {
             item['Name']: item for item in schema
         }
 
-        bedrock = aws.get('bedrock-runtime')
-        questions = list()
-        questions.append({
-            "role": "user",
-            "content": pmt
-        })
+        # 列可能会太多，超出大模型的长度，这里先写死一个分批的大小
+        batch_count = 40
+        begin_index = 0
+        pyob_lst = None
+        while begin_index < len(schema):
+            end_index = min(begin_index + batch_count, len(schema))
+            columns = schema[begin_index: end_index]
+            sample_data = gen.get_sample_data(table_name, columns, conn)
+            pmt = gen.PROMPT_F.format(table_name, columns, sample_data)
 
-        output = llm.query(questions, bedrock)
+            questions = list()
+            questions.append({
+                "role": "user",
+                "content": pmt
+            })
 
-        pyob = json.loads(output)
+            output = llm.query(questions, bedrock)
+            print(output)
+            pyob = json.loads(output)
+            if pyob_lst:
+                pyob_lst["columns"].extend(pyob["columns"])
+            else:
+                pyob_lst = pyob
+                
+            begin_index = end_index
+
         # 创建一个工作簿
         with open(f"{data_files}/{scenario}.json", mode='w') as f:
+            output = json.dumps(pyob_lst)
             f.write(output)
-            
 
         ws = wb.create_sheet(title=table_name)
 
-        table_desc = pyob['desc']
-        columns = pyob['columns']
+        table_desc = pyob_lst['desc']
+        columns = pyob_lst['columns']
         tables_desc.append(table_desc)
         ws.append(["表名", table_name])
         ws.append(["基本信息", table_desc])
@@ -96,7 +109,6 @@ def template_command(args):
                     column['option_desc']
 
             ws.append([column['name'], dtype, dw, "True", desc, ""])
-            
 
     ws = wb.active
     ws.title = "summary"

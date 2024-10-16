@@ -1,32 +1,7 @@
 [
     {
-        "question":"账号hbdhfy0f下对应的组织id、组织名称、用户id、用户账号、电站id、电站名称、电站创建时间、电站所属国家、电站地址、电站装机容量(设备汇总得到)、电站下逆变器数量、电站下储能逆变器数量、电站下通讯设备数量、电站下设备数量",
-        "params":["hbdhfy0f"],
-        "sql":"7.sql"
-    },
-    {
-        "question":"账号hbdhfy0f下对应的用户id、用户账号、组织id、组织名称、电站id、通讯设备sn、机型、流量到期时间、sim卡号、iccid号、卡状态",
-        "params":["hbdhfy0f"],
-        "sql":"8.sql"
-    },
-    {
-        "question":"电池的上级是储能逆变器的电池ps_key、电池sn、电池机型、储能逆变器sn、储能逆变器机型",
-        "params":[],
-        "sql":"9.sql"
-    },
-    {
-        "question":"账号hbdhfy0f下对应的用户id、用户账号、电站id、电站名称、电站创建时间、电站所属国家、电站地址、电站装机容量(设备汇总得到)、电站下逆变器数量、电站下储能逆变器数量、电站下通讯设备数量、电站下设备数量",
-        "params":["hbdhfy0f"],
-        "sql":"10.sql"
-    },
-    {
-        "question":"一台储能逆变器下接2个及以上并联电池，导出包括电站名称、配套储能逆变器SN、电池软件版本（version1、version2、version3、version4、version5）",
-        "params":[],
-        "sql":"11.sql"
-    },
-    {
-        "question":"电池软件版本对应的版本为(SBRBCU-S_22011.01.06、SBRBCU-S_22011.01.07、 SBRBCU-S_22011.01.09、SBRBCU-S_22011.01.0a、SBRBCU-S_22011.01.11，SBRBCU-S_22011.01.12，SBRBCU-S_22011.01.13，SBRBCU-S_22011.01.14，SBRBCU-S_22011.01.16，SBRBCU-S_22011.01.17，SBRBCU-S_22011.01.18，SBRBCU-S_22011.01.19，SBRBCU-S_22011.01.20，SBRBCU-S_22011.01.21，SBRBCU-S_22011.01.22，SBRBCU-S_22011.01.23)的这些的电站id、电站名称、储能逆变器机型、sn、version1、version2、version3、version4、version5）",
-        "params":["SBRBCU-S_22011.01.06, SBRBCU-S_22011.01.07, SBRBCU-S_22011.01.09, SBRBCU-S_22011.01.0a, SBRBCU-S_22011.01.11, SBRBCU-S_22011.01.12, SBRBCU-S_22011.01.13, SBRBCU-S_22011.01.14, SBRBCU-S_22011.01.16, SBRBCU-S_22011.01.17, SBRBCU-S_22011.01.18, SBRBCU-S_22011.01.19, SBRBCU-S_22011.01.20, SBRBCU-S_22011.01.21, SBRBCU-S_22011.01.22, SBRBCU-S_22011.01.23"],
-        "sql":"12.sql"
+        "question":"不同工厂在上海交付的车型数量",
+        "params":["上海市"],
+        "sql":"1.sql"
     }
 ]
