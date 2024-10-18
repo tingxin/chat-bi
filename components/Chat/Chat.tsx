@@ -1,4 +1,9 @@
-import { IconClearAll, IconLogout, IconUser } from '@tabler/icons-react';
+import {
+  IconClearAll,
+  IconInfoCircle,
+  IconLogout,
+  IconUser,
+} from '@tabler/icons-react';
 import {
   MutableRefObject,
   memo,
@@ -48,8 +53,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       loading,
     },
     handleUpdateConversation,
-    // signOut,
-    // user,
+    signOut,
+    user,
     dispatch: homeDispatch,
   } = useContext(HomeContext);
 
@@ -94,8 +99,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         homeDispatch({ field: 'messageIsStreaming', value: true });
         const chatBody: ChatBody = {
           messages: updatedConversation.messages,
-          // userId: user.username,
-          userId: '',
+          userId: user.username,
           modelType: plugin?.id.includes('-hard')
             ? 'bedrock-hard'
             : 'bedrock-normal',
@@ -108,14 +112,45 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         const endpoint = getEndpoint();
         const body = JSON.stringify(chatBody);
         const controller = new AbortController();
+        const signal = controller.signal;
+        let shouldAbort = false;
+        const checkAbort = () => {
+          if (stopConversationRef.current === true) {
+            try {
+              shouldAbort = true;
+              if (signal.aborted && signal.reason) {
+                controller.abort();
+              }
+            } catch (e) {}
+            homeDispatch({ field: 'loading', value: false });
+            homeDispatch({ field: 'messageIsStreaming', value: false });
+          }
+        };
+        checkAbort();
+        const intervalId = setInterval(() => {
+          checkAbort();
+          if (stopConversationRef.current === true) {
+            clearInterval(intervalId); // 停止轮询
+          }
+        }, 100); // 每 100ms 检查一次
+
+        if (shouldAbort) {
+          return;
+        }
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          signal: controller.signal,
+          signal,
           body,
         });
+        if (stopConversationRef.current === true) {
+          controller.abort();
+          homeDispatch({ field: 'loading', value: false });
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+          return;
+        }
         // console.log('response', response);
         if (!response.ok) {
           homeDispatch({ field: 'loading', value: false });
@@ -124,7 +159,6 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           return;
         }
         const data = response.body;
-        
         if (!data) {
           homeDispatch({ field: 'loading', value: false });
           homeDispatch({ field: 'messageIsStreaming', value: false });
@@ -146,38 +180,36 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         let done = false;
         let isFirst = true;
         let text = '';
+        // 请求成功时，停止轮询
+        clearInterval(intervalId);
+        if (shouldAbort) {
+          homeDispatch({ field: 'loading', value: false });
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+          return;
+        }
         while (!done) {
-          if (stopConversationRef.current === true) {
-            controller.abort();
-            done = true;
-            break;
-          }
           const { value, done: doneReading } = await reader.read();
-          console.log('value:',value)
-          console.log('doneReading:',doneReading)
-
           done = doneReading;
           const chunkValue = decoder.decode(value);
           text += chunkValue;
-
-          console.log('text:',text)
-          console.log('chunkValue:',chunkValue)
 
           let answerObj = JSON.parse(text);
           if (!answerObj || Object.keys(answerObj).length === 0) {
             answerObj = { content: '暂无回答' };
           }
+          console.log('requestId ----> ', answerObj.requestId);
           let chartData = initChartData(answerObj);
           let showContent = '';
           if (answerObj.sql) {
             showContent = `原始SQL:\n \`\`\`sql \n${answerObj.sql} \n\`\`\`\n `;
           }
-          if (answerObj.mdData) {
-            showContent += answerObj.mdData + '\n';
-          }
           if (answerObj.content) {
             showContent += answerObj.content + '\n';
           }
+          if (answerObj.mdData) {
+            showContent += answerObj.mdData + '\n';
+          }
+
           if (isFirst) {
             isFirst = false;
             const updatedMessages: Message[] = [
@@ -187,13 +219,14 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                 content: showContent,
                 sql: answerObj.sql,
                 chartData,
+                chartType: answerObj.chartType,
+                extra: answerObj.extra,
               },
             ];
             updatedConversation = {
               ...updatedConversation,
               messages: updatedMessages,
             };
-
             homeDispatch({
               field: 'selectedConversation',
               value: updatedConversation,
@@ -207,6 +240,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     content: showContent,
                     sql: answerObj.sql,
                     chartData,
+                    chartType: answerObj.chartType,
+                    extra: answerObj.extra,
                   };
                 }
                 return message;
@@ -222,6 +257,111 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             });
           }
         }
+        // while (!done) {
+        //   console.log(
+        //     'stopConversationRef.current while',
+        //     stopConversationRef.current,
+        //   );
+
+        //   const abortPromise = new Promise((_, reject) => {
+        //     const abortListener = () => {
+        //       reject(new Error('Request aborted'));
+        //     };
+        //     controller.signal.addEventListener('abort', abortListener);
+        //   });
+
+        //   try {
+        //     const { value, done: doneReading } = (await Promise.race([
+        //       reader.read(),
+        //       abortPromise,
+        //     ])) as any;
+        //     console.log(
+        //       'stopConversationRef.current while222',
+        //       stopConversationRef.current,
+        //     );
+        //     if (stopConversationRef.current === true) {
+        //       controller.abort();
+        //       done = true;
+        //       break;
+        //     }
+
+        //     done = doneReading;
+        //     const chunkValue = decoder.decode(value);
+        //     text += chunkValue;
+        //     console.log(
+        //       'stopConversationRef.current while333',
+        //       stopConversationRef.current,
+        //     );
+        //     let answerObj = JSON.parse(text);
+        //     if (!answerObj || Object.keys(answerObj).length === 0) {
+        //       answerObj = { content: '暂无回答' };
+        //     }
+
+        //     console.log('requestId ----> ', answerObj.requestId);
+        //     let chartData = initChartData(answerObj);
+        //     let showContent = '';
+        //     if (answerObj.sql) {
+        //       showContent = `原始SQL:\n \`\`\`sql \n${answerObj.sql} \n\`\`\`\n `;
+        //     }
+        //     if (answerObj.content) {
+        //       showContent += answerObj.content + '\n';
+        //     }
+        //     if (answerObj.mdData) {
+        //       showContent += answerObj.mdData + '\n';
+        //     }
+
+        //     if (isFirst) {
+        //       isFirst = false;
+        //       const updatedMessages: Message[] = [
+        //         ...updatedConversation.messages,
+        //         {
+        //           role: 'assistant',
+        //           content: showContent,
+        //           sql: answerObj.sql,
+        //           chartData,
+        //           chartType: answerObj.chartType,
+        //         },
+        //       ];
+        //       updatedConversation = {
+        //         ...updatedConversation,
+        //         messages: updatedMessages,
+        //       };
+        //       homeDispatch({
+        //         field: 'selectedConversation',
+        //         value: updatedConversation,
+        //       });
+        //     } else {
+        //       const updatedMessages: Message[] =
+        //         updatedConversation.messages.map((message, index) => {
+        //           if (index === updatedConversation.messages.length - 1) {
+        //             return {
+        //               ...message,
+        //               content: showContent,
+        //               sql: answerObj.sql,
+        //               chartData,
+        //               chartType: answerObj.chartType,
+        //             };
+        //           }
+        //           return message;
+        //         });
+        //       updatedConversation = {
+        //         ...updatedConversation,
+        //         messages: updatedMessages,
+        //       };
+        //       homeDispatch({
+        //         field: 'selectedConversation',
+        //         value: updatedConversation,
+        //       });
+        //     }
+        //   } catch (error: any) {
+        //     if (error.message === 'Request aborted') {
+        //       console.log('请求已中止');
+        //       done = true;
+        //     } else {
+        //       console.error('发生错误:', error);
+        //     }
+        //   }
+        // }
         saveConversation(updatedConversation);
         const updatedConversations: Conversation[] = conversations.map(
           (conversation) => {
@@ -315,6 +455,12 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     }
   };
 
+  const onShowTips = () => {
+    alert(
+      '如果查询数据没出来，可以刷新浏览器多尝试几次；如果还是不行，可以联系 汤帅 。',
+    );
+  };
+
   const scrollDown = () => {
     if (autoScrollEnabled) {
       messagesEndRef.current?.scrollIntoView(true);
@@ -387,7 +533,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               <>
                 <div className="mx-auto flex flex-col space-y-5 md:space-y-10 px-3 pt-5 md:pt-12 sm:max-w-[600px]">
                   <div className="text-center text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                    生成式BI
+                    Text to SQL
                   </div>
                   <span
                     style={{
@@ -403,7 +549,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             ) : (
               <>
                 <div className="sticky top-0 z-10 flex justify-center border border-b-neutral-300 bg-neutral-100 py-2 text-sm text-neutral-500 dark:border-none dark:bg-[#444654] dark:text-neutral-200">
-                  {/* <IconUser size={18} />
+                  <IconUser size={18} />
                   {user.username}
                   &nbsp;&nbsp;&nbsp;&nbsp;
                   <></>
@@ -417,7 +563,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     </span>
                   </button>
                   &nbsp;&nbsp;&nbsp;&nbsp;
-                  <></> */}
+                  <></>
                   <button
                     className="ml-2 cursor-pointer hover:opacity-50"
                     onClick={onClearAll}
@@ -425,6 +571,16 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     <span style={{ display: 'inline' }}>
                       <IconClearAll size={18} style={{ display: 'inline' }} />
                       清除所有消息
+                    </span>
+                  </button>
+                  &nbsp;&nbsp;&nbsp;&nbsp;
+                  <button
+                    className="ml-2 cursor-pointer hover:opacity-50"
+                    onClick={onShowTips}
+                  >
+                    <span style={{ display: 'inline' }}>
+                      <IconInfoCircle size={18} style={{ display: 'inline' }} />
+                      查询提示
                     </span>
                   </button>
                 </div>

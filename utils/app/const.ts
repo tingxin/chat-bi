@@ -21,6 +21,9 @@ export const REDSHIFT_HOST = process.env.REDSHIFT_HOST || '';
 export const REDSHIFT_PORT = parseInt(process.env.REDSHIFT_PORT|| '5439');
 export const REDSHIFT_SSL =  true;
 
+
+export const SERVER_HOST = process.env.SERVER_HOST;
+
 export const MYSQL_DATABASE = process.env.MYSQL_DATABASE;
 export const MYSQL_HOST = process.env.MYSQL_HOST;
 export const MYSQL_PORT = parseInt(process.env.MYSQL_PORT || '3306');
@@ -44,4 +47,6 @@ export const EXAMPLE_FILE_NAME = process.env.EXAMPLE_FILE_NAME;
 export const RAG_SEARCH_LENGHT = process.env.RAG_SEARCH_LENGHT;
 
 export const RAG_FILE_NAME = process.env.RAG_FILE_NAME;
+
+export const BACK_USER_POOL_REGION = process.env.BACK_USER_POOL_REGION;
 

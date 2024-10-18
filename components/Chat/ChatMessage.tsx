@@ -1,6 +1,7 @@
 import {
   IconCheck,
   IconCopy,
+  IconDownload,
   IconEdit,
   IconRobot,
   IconTrash,
@@ -22,7 +23,6 @@ import ChartPie from '../Chatbar/components/ChartPie';
 import { CodeBlock } from '../Markdown/CodeBlock';
 import { MemoizedReactMarkdown } from '../Markdown/MemoizedReactMarkdown';
 
-// import '@cloudscape-design/global-styles/index.css';
 import rehypeMathjax from 'rehype-mathjax';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -115,7 +115,6 @@ export const ChatMessage: FC<Props> = memo(
       }
     };
 
-
     const markdownTableToCSV = (markdown: string): string => {
       // 按行分割Markdown字符串
       const rows = markdown.split('\n');
@@ -147,6 +146,7 @@ export const ChatMessage: FC<Props> = memo(
       return csv;
     };
 
+
     const copyOnClick = () => {
       const fileExtension ='.csv';
       const suggestedFileName = `data-file${fileExtension}`;
@@ -159,14 +159,20 @@ export const ChatMessage: FC<Props> = memo(
         // user pressed cancel on prompt
         return;
       }
+      
+      var url = "";
+      console.log(message);
+      if (!message.extra) {
+        const startsspl = message.content.indexOf("|", 10);
+        const cleanedString = message.content.slice(startsspl+1);
+        const csvdata1 = markdownTableToCSV(cleanedString);
+        const csvdata = '\uFEFF' + csvdata1;
 
-      const startsspl = message.content.indexOf("|", 10);
-      const cleanedString = message.content.slice(startsspl+1);
-      const csvdata1 = markdownTableToCSV(cleanedString);
-      const csvdata = '\uFEFF' + csvdata1;
-
-      const blob = new Blob([csvdata], { type: 'text/plain;charset=UTF-8'  });
-      const url = URL.createObjectURL(blob);
+        const blob = new Blob([csvdata], { type: 'text/plain;charset=UTF-8'  });
+        url = URL.createObjectURL(blob);
+      } else {
+        url = message.extra;
+      }
       const link = document.createElement('a');
       link.download = fileName;
       link.href = url;
@@ -187,7 +193,7 @@ export const ChatMessage: FC<Props> = memo(
         textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
       }
     }, [isEditing]);
-
+    // console.log('message', message);
     return (
       <div
         className={`group md:px-4 ${
@@ -252,6 +258,9 @@ export const ChatMessage: FC<Props> = memo(
                 ) : (
                   <div className="prose whitespace-pre-wrap dark:prose-invert flex-1">
                     {message.content}
+                    <div>
+                    {message.extra}
+                    </div>
                   </div>
                 )}
 
@@ -282,17 +291,20 @@ export const ChatMessage: FC<Props> = memo(
                     components={{
                       code({ node, inline, className, children, ...props }) {
                         if (children.length) {
-                          if (children[0] == '▍') {
+                          if (
+                            children[0] == '▍' ||
+                            children[0] == 'Working...'
+                          ) {
                             return (
                               <span className="animate-pulse cursor-default mt-1">
-                                ▍
+                                Working...
                               </span>
                             );
                           }
 
                           children[0] = (children[0] as string).replace(
-                            '`▍`',
-                            '▍',
+                            '`Working...`',
+                            'Working...',
                           );
                         }
 
@@ -338,7 +350,7 @@ export const ChatMessage: FC<Props> = memo(
                       messageIsStreaming &&
                       messageIndex ==
                         (selectedConversation?.messages.length ?? 0) - 1
-                        ? '`▍`'
+                        ? '`Working...`'
                         : ''
                     }`}
                   </MemoizedReactMarkdown>
@@ -354,26 +366,43 @@ export const ChatMessage: FC<Props> = memo(
                         className="invisible group-hover:visible focus:visible text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                         onClick={copyOnClick}
                       >
-                        <IconCopy size={20} />
+                        <IconDownload size={20} />
                       </button>
                     )}
                   </div>
                 </div>
                 <div>
+                {findIndex > 0 &&
+                    messages[findIndex - 1] &&
+                    messages[findIndex - 1].extra && (
+                    <a href={messages[findIndex - 1].extra}>下载文件</a>  
+                )}
+                </div>
+                <div>
                   {findIndex > 0 &&
                     messages[findIndex - 1] &&
                     messages[findIndex - 1].content && (
-                      <div className="chart-div">
-                        <ChartBar
-                          message={message}
-                          oldMessage={messages[findIndex - 1]}
-                        />
-                        <ChartPie
-                          message={message}
-                          oldMessage={messages[findIndex - 1]}
-                        />
-                      </div>
-                    )}
+                    <div className="chart-div">
+                      {message.chartType &&
+                        (message.chartType.toLowerCase() ===
+                          'LineChartPic'.toLowerCase() ||
+                          message.chartType.toLowerCase() ===
+                            'BarChartPic'.toLowerCase()) && (
+                          <ChartBar
+                            message={message}
+                            oldMessage={messages[findIndex - 1]}
+                          />
+                        )}
+                      {message.chartType &&
+                        message.chartType.toLowerCase() ===
+                          'PieChartPic'.toLowerCase() && (
+                          <ChartPie
+                            message={message}
+                            oldMessage={messages[findIndex - 1]}
+                          />
+                        )}
+                    </div>
+                  )}
                 </div>
               </>
             )}

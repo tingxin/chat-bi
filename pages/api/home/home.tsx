@@ -37,7 +37,7 @@ import Promptbar from '@/components/Promptbar';
 import HomeContext from './home.context';
 import { HomeInitialState, initialState } from './home.state';
 
-// import { signOut } from '@aws-amplify/auth';
+import { signOut } from '@aws-amplify/auth';
 import '@cloudscape-design/global-styles/index.css';
 import { Amplify } from 'aws-amplify';
 import { v4 as uuidv4 } from 'uuid';
@@ -75,13 +75,54 @@ const moveUser = () => {
     `CognitoIdentityServiceProvider.${configObj.aws_user_pools_web_client_id}.${loginId}.accessToken`,
   );
 };
-
+const setCognitoConfig = async () => {
+  let configDataStr = window.localStorage.getItem(configKey);
+  if (configDataStr) {
+    const configData = JSON.parse(configDataStr);
+    if (configData && configData.aws_user_pools_id) {
+      Amplify.configure(configData);
+      return;
+    }
+  }
+  if (!process.env.NEXT_PUBLIC_USER_POOL_ID) {
+    fetch('/api/getConfig')
+      .then((respone) => respone.json())
+      .then((result) => {
+        const configData = {
+          aws_project_region: result.region,
+          aws_user_pools_id: result.userPoolId,
+          aws_user_pools_web_client_id: result.userPoolClientId,
+          aws_cognito_region: result.region,
+        };
+        Amplify.configure(configData);
+        window.localStorage.setItem(configKey, JSON.stringify(configData));
+      });
+  } else {
+    const configData = {
+      aws_project_region: process.env.NEXT_PUBLIC_REGION,
+      aws_user_pools_id: process.env.NEXT_PUBLIC_USER_POOL_ID,
+      aws_user_pools_web_client_id: process.env.NEXT_PUBLIC_USER_CLIENT_ID,
+      aws_cognito_region: process.env.NEXT_PUBLIC_REGION,
+    };
+    Amplify.configure(configData);
+    localStorage.setItem(configKey, JSON.stringify(configData));
+  }
+  try {
+    await signOut();
+  } catch (error) {}
+  window.onbeforeunload = (e) => {
+    const alertTxt = '刷新需要重新登录';
+    e.returnValue = alertTxt;
+    return alertTxt;
+  };
+};
 const components = {
   SignIn: {
     Header() {
       const { tokens } = useTheme();
       useEffect(() => {
         moveUser();
+        setCognitoConfig();
       }, []);
 
       return (
@@ -89,7 +130,7 @@ const components = {
           padding={`${tokens.space.xl} 0 0 ${tokens.space.xl}`}
           level={3}
         >
-          Sign in to your account
+          登录
         </Heading>
       );
     },
@@ -137,57 +178,18 @@ const Home = ({
     { enabled: true, refetchOnMount: false },
   );
 
-  // const setCognitoConfig = async () => {
-  //   let configDataStr = localStorage.getItem(configKey);
-  //   if (configDataStr) {
-  //     const configData = JSON.parse(configDataStr);
-  //     if (configData && configData.aws_user_pools_id) {
-  //       Amplify.configure(configData);
-  //       return;
-  //     }
-  //   }
-  //   if (!process.env.NEXT_PUBLIC_USER_POOL_ID) {
-  //     fetch('/api/getConfig')
-  //       .then((respone) => respone.json())
-  //       .then((result) => {
-  //         const configData = {
-  //           aws_project_region: result.region,
-  //           aws_user_pools_id: result.userPoolId,
-  //           aws_user_pools_web_client_id: result.userPoolClientId,
-  //           aws_cognito_region: result.region,
-  //         };
-  //         Amplify.configure(configData);
-  //         localStorage.setItem(configKey, JSON.stringify(configData));
-  //       });
-  //   } else {
-  //     const configData = {
-  //       aws_project_region: process.env.NEXT_PUBLIC_REGION,
-  //       aws_user_pools_id: process.env.NEXT_PUBLIC_USER_POOL_ID,
-  //       aws_user_pools_web_client_id: process.env.NEXT_PUBLIC_USER_CLIENT_ID,
-  //       aws_cognito_region: process.env.NEXT_PUBLIC_REGION,
-  //     };
-  //     Amplify.configure(configData);
-  //     localStorage.setItem(configKey, JSON.stringify(configData));
-  //   }
-  //   try {
-  //     await signOut();
-  //   } catch (error) {}
-  //   window.onbeforeunload = (e) => {
-  //     const alertTxt = '刷新需要重新登录';
-  //     e.returnValue = alertTxt;
-  //     return alertTxt;
-  //   };
-  // };
-
+  // setCognitoConfig();
   useEffect(() => {
     if (data) dispatch({ field: 'models' as any, value: data });
   }, [data, dispatch]);
 
-  // useEffect(() => {
-  //   return () => {
-  //     moveUser();
-  //   };
-  // }, []);
+  useEffect(() => {
+    setCognitoConfig();
+    return () => {
+      moveUser();
+      setCognitoConfig();
+    };
+  }, []);
 
   // FETCH MODELS ----------------------------------------------
 
@@ -335,7 +337,7 @@ const Home = ({
   // ON LOAD --------------------------------------------
 
   useEffect(() => {
-    // setCognitoConfig();
+    setCognitoConfig();
     const settings = getSettings();
     if (settings.theme) {
       dispatch({
@@ -416,60 +418,60 @@ const Home = ({
   ]);
 
   return (
-    // <Authenticator hideSignUp components={components}>
-    //   {({ signOut, user }) => {
-    //     return (
-    <HomeContext.Provider
-      value={{
-        ...contextValue,
-        handleNewConversation,
-        handleCreateFolder,
-        handleDeleteFolder,
-        handleUpdateFolder,
-        handleSelectConversation,
-        handleUpdateConversation,
-        // signOut,
-        // user,
+    <Authenticator hideSignUp components={components}>
+      {({ signOut, user }) => {
+        return (
+          <HomeContext.Provider
+            value={{
+              ...contextValue,
+              handleNewConversation,
+              handleCreateFolder,
+              handleDeleteFolder,
+              handleUpdateFolder,
+              handleSelectConversation,
+              handleUpdateConversation,
+              signOut,
+              user,
+            }}
+          >
+            <Head>
+              <title>AI for BI</title>
+              <meta
+                name="description"
+                content="AI for BI, a tool for converting natural language into SQL, powered by aws bedrock."
+              />
+              <meta
+                name="viewport"
+                content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
+              />
+              <link rel="icon" href="/favicon.ico" />
+            </Head>
+            {selectedConversation && (
+              <main
+                className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
+              >
+                <div className="fixed top-0 w-full sm:hidden">
+                  <Navbar
+                    selectedConversation={selectedConversation}
+                    onNewConversation={handleNewConversation}
+                  />
+                </div>
+
+                <div className="flex h-full w-full pt-[48px] sm:pt-0">
+                  <Chatbar />
+
+                  <div className="flex flex-1">
+                    <Chat stopConversationRef={stopConversationRef} />
+                  </div>
+
+                  <Promptbar />
+                </div>
+              </main>
+            )}
+          </HomeContext.Provider>
+        );
       }}
-    >
-      <Head>
-        <title>Test to sql</title>
-        <meta
-          name="description"
-          content="Test to sql, a tool for converting natural language into SQL, powered by aws bedrock."
-        />
-        <meta
-          name="viewport"
-          content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
-        />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      {selectedConversation && (
-        <main
-          className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
-        >
-          <div className="fixed top-0 w-full sm:hidden">
-            <Navbar
-              selectedConversation={selectedConversation}
-              onNewConversation={handleNewConversation}
-            />
-          </div>
-
-          <div className="flex h-full w-full pt-[48px] sm:pt-0">
-            <Chatbar />
-
-            <div className="flex flex-1">
-              <Chat stopConversationRef={stopConversationRef} />
-            </div>
-
-            <Promptbar />
-          </div>
-        </main>
-      )}
-    </HomeContext.Provider>
-    //     );
-    //   }}
-    // </Authenticator>
+    </Authenticator>
   );
 };
 export default Home;

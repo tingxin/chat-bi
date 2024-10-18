@@ -829,7 +829,7 @@ const getS3JsonFile = async (fileName: string | undefined) => {
     return [];
   }
   try {
-    const s3Client = new S3Client({region:DEFAULT_REGION});
+    const s3Client = new S3Client(AWS_PARAM);
     const getObjectParams = {
       Bucket: BUCKET_NAME,
       Key: fileName,

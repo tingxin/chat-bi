@@ -59,7 +59,7 @@ export const PluginSelect: FC<Props> = ({
       selectRef.current.focus();
     }
   }, []);
-
+  return <></>;
   return (
     <div className="flex flex-col">
       <div className="mb-1 w-full rounded border border-neutral-200 bg-transparent pr-2 text-neutral-900 dark:border-neutral-600 dark:text-white">

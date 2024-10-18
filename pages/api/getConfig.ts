@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import {
   BACK_USER_CLIENT_ID,
   BACK_USER_POOL_ID,
-  DEFAULT_REGION,
+  BACK_USER_POOL_REGION,
 } from '@/utils/app/const';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -11,7 +11,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(200).json({
       userPoolId: BACK_USER_POOL_ID,
       userPoolClientId: BACK_USER_CLIENT_ID,
-      region: DEFAULT_REGION,
+      region: BACK_USER_POOL_REGION,
     });
   } catch (error) {
     console.error(error);
