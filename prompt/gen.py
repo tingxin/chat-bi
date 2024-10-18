@@ -73,13 +73,13 @@ def get_table_schema(tb_name:str, conn):
 
 
 
-def get_sample_data(table_name:str, schema:dict, conn):
+def get_sample_data(table_name:str, schema:dict, conn, sample_count=20):
     sql = list()
     sql.append("SELECT")
 
 
     column_str = ','.join([row['Name'] for row in schema])
-    sql = f"SELECT DISTINCT {column_str} FROM {table_name} LIMIT 10"
+    sql = f"SELECT DISTINCT {column_str} FROM {table_name} LIMIT {sample_count}"
     print(sql)
 
     with conn.cursor() as cursor:

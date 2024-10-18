@@ -141,6 +141,7 @@ def main():
     parser_template.add_argument("--scenario", type=str, help="场景名称")
     parser_template.add_argument(
         "--tables", type=str, nargs="+", help="数据表列表，表名称之间用空格隔开")
+    
 
     # 创建 print 子命令的解析器
     parser_prompt = subparsers.add_parser(
