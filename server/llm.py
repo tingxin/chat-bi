@@ -1,5 +1,5 @@
 import boto3
-
+import time
 import os
 import json
 import re
@@ -94,16 +94,23 @@ def query(questions:list, bedrock_client=None):
     }
     # Convert the native request to JSON.
     request = json.dumps(native_request)
+    try_times = 0
+    while try_times < 3:
+        try:
+            response = bedrock_client.invoke_model_with_response_stream(
+                body=request,
+                contentType='application/json',
+                accept='*/*',
+                modelId=model_id,
+            )
 
-    response = bedrock_client.invoke_model_with_response_stream(
-        body=request,
-        contentType='application/json',
-        accept='*/*',
-        modelId=model_id,
-    )
+            text = _to_claude_response(response)
+            return text
 
-    text = _to_claude_response(response)
-    return text
+        except Exception as ex:
+            time.sleep(3)
+            try_times +=1
+    return ""
 
 
 

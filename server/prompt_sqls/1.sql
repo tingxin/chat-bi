@@ -1,3 +1,1 @@
-SELECT factory_name, SUM(car_model_count) 
-FROM nitto_order
-WHERE deliver_city='{0}'
+SELECT arrival_city, COUNT(DISTINCT id) AS order_count FROM nitto_order WHERE factory_one = '{0}' AND EXTRACT(YEAR_MONTH FROM ask_arrival_time) = 202409 GROUP BY arrival_city ORDER BY order_count DESC

@@ -35,7 +35,7 @@ PROMPT_F = """
 这里有个具体的例子：
 {{
     'table': 'order_detail',
-    'desc': '这张表详细介绍了用户的详细信息，包括下单用户信息，下单时间，订单处理情况等',
+    'desc': '用户的详细信息，包括下单用户信息，下单时间，订单处理情况等',
     'columns':[
         {{
             'name':'status',
@@ -49,6 +49,11 @@ PROMPT_F = """
 *请直接返回结果，不要做任何解释，确保返回的结果能够被转化成json对象*
 """
 
+SCENARIO_PROMPT_F = """
+我的业务包含的表都包括如下信息:
+{0};
+请根据上面信息，用三十个字以内，对我的业务进行一个总结
+"""
 
 def get_table_schema(tb_name:str, conn):
     tsql =SHOW_SCHEMA_F.format(tb_name) 

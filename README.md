@@ -31,8 +31,19 @@ ip:5017
 
 
 ## 自动生成提示词
-python3 prompt_gen.py template --scenario nitto --tables nitto_order
+python3 prompt_gen.py template --scenario nitto --tables nitto_order nitto_fiscal_year be_busi_fee_result
 
 python3 prompt_gen.py prompt
+
+
+## 其他
+mysql -h tx-db.cbore8wpy3mc.us-east-2.rds.amazonaws.com -P 3306 -u reader -p 
+
+CREATE USER 'reader'@'%' IDENTIFIED BY 'reader#1234';
+ALTER USER 'reader'@'%' IDENTIFIED BY 'Reader2025';
+
+GRANT SELECT ON *.* TO 'reader'@'%';
+
+
 
 

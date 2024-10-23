@@ -51,10 +51,9 @@ def template_command(args):
     table_names = tables
     wb = Workbook()
     tables_desc = list()
+    bedrock = aws.get('bedrock-runtime')
     for table_name in table_names:
         print(f"开始处理表{table_name}...")
-        bedrock = aws.get('bedrock-runtime')
-
         schema = gen.get_table_schema(table_name, conn)
         schema_search = {
             item['Name']: item for item in schema
@@ -110,10 +109,20 @@ def template_command(args):
 
             ws.append([column['name'], dtype, dw, "True", desc, ""])
 
+    tables_des_str = ",".join(tables_desc)
+    scenario_pmt = gen.SCENARIO_PROMPT_F.format(tables_des_str)
+    questions = list()
+    questions.append({
+        "role": "user",
+        "content": scenario_pmt
+    })
+
+    output = llm.query(questions, bedrock)
+    
     ws = wb.active
     ws.title = "summary"
     ws.append(["场景", scenario])
-    ws.append(["场景描述", scenario+"包含这些信息："+",".join(tables_desc)])
+    ws.append(["场景描述", scenario+"包含这些信息："+output])
     ws.append(["查询规则", ""])
     ws.append(["关联规则", ""])
     # 将DataFrame保存为Excel文件
@@ -142,7 +151,7 @@ def main():
     parser_template.add_argument(
         "--tables", type=str, nargs="+", help="数据表列表，表名称之间用空格隔开")
 
-    # 创建 print 子命令的解析器
+    # 创建 prompt 子命令的解析器
     parser_prompt = subparsers.add_parser(
         "prompt", help="生成提示词文件，并上传到S3中，执行前请确保已经生成了提示词模板，并人工进行reivw")
 
