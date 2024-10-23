@@ -24,10 +24,32 @@ docker build -f DockerfileServer -t text2sql_server .
 docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
 
 docker run -p 5018:80  --name textdemoserver text2sql_server
+
 ```
 
 使用浏览器打开
 ip:5017
+
+
+## 配置本地文件下载
+默认情况下，数据文件会上传到s3,提供下载，如果你希望使用服务器做为下载服务，避免使用公网访问s3客户如下配置
+创建一个downloads文件夹
+```
+mkdir downloads
+cd downloads
+```
+
+创建一个简单的文件服务器,例如
+```
+python3 -m http.server 端口号
+
+python3 -m http.server 5023
+```
+
+进入环境变量文件.env，添加环境变量
+```
+DOWNLOAD_HOST={文件服务器的公网或内网IP}:端口
+```
 
 
 
