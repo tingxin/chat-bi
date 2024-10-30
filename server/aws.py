@@ -4,17 +4,25 @@ import io
 from datetime import datetime, timedelta
 import os
 
-def get(service_name:str):
+def get(service_name:str, force_llm:bool=False):
+
+    if service_name == "bedrock-runtime" and not force_llm:
+        proxy_server =  os.getenv("LLM_PROXY_SERVER", "")
+        if proxy_server:
+            print(f"begin use proxy server:{proxy_server}")
+            return {
+                    'proxy_server':proxy_server
+                } 
+    
     is_dev =bool(os.getenv('DEV_MODEL'))
     if service_name == 's3' and is_dev:
         client = boto3.client(
             service_name,
             region_name = os.getenv('S3_REGION')
         )
-        return client
-           
+        return client 
 
-    if 'ACCESS_KEY' in os.environ and 'SECRET_ACCESS_KEY' in os.environ and len(os.environ['ACCESS_KEY']) == 20:
+    if 'ACCESS_KEY' in os.environ and 'SECRET_ACCESS_KEY' in os.environ and len(os.environ['ACCESS_KEY']) == 20:              
        return boto3.client(
             service_name,
             region_name = os.getenv('DEFAULT_REGION'),

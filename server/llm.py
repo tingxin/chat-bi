@@ -3,6 +3,7 @@ import boto3
 import os
 import json
 import re
+import requests
 
 from . import aws
 
@@ -53,34 +54,14 @@ def format_bedrock_result(bedrock_res):
     return bedrock_res
 
 
-def _query_embedding(questions:list, bedrock_client=None):
-    embedding_model_id = os.environ.get('EMBEDDING_MODEL_ID', 'amazon.titan-embed-image-v1')
+def query(questions:list, bedrock_client):
 
-    if not bedrock_client:
-        bedrock_client = aws.get('bedrock-runtime')
-
-    native_request = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
-        "messages":questions
-
-    }
-    # Convert the native request to JSON.
-    request = json.dumps(native_request)
-
-    response = bedrock_client.invoke_model_with_response_stream(
-        body=request,
-        contentType='application/json',
-        accept='*/*',
-        modelId=embedding_model_id,
-    )
-
-    text = _to_claude_response(response)
-    return text
-
-def query(questions:list, bedrock_client=None):
-    if not bedrock_client:
-        bedrock_client = aws.get('bedrock-runtime')
+    if  isinstance(bedrock_client,dict) and 'proxy_server' in bedrock_client:
+        json_data = json.dumps(questions)
+        # 发送POST请求
+        api = f"{bedrock_client['proxy_server']}/query"
+        response = requests.post(api, headers={'Content-Type': 'application/json'}, data=json_data)
+        return response.text
 
     model_id = os.environ.get('MODEL_ID', 'anthropic.claude-3-haiku-20240307-v1:0')
 
