@@ -22,7 +22,7 @@ service.init()
 class HelloWorld(Resource):
     def get(self):
         # 返回一个简单的问候消息
-        return {'message': 'Hello, World!'}
+        return {'message': 'Hello, World!!'}
 
 
 class QueryLLM(Resource):
