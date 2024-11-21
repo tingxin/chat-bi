@@ -63,7 +63,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
         }
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
-
+    logger.info(f"user:{user_id}===>trace id:{trace_id}===>get sql {fmt_sql}")
     last_item = msg[-1]
     raw_content = last_item['content']
 
@@ -246,7 +246,7 @@ def answer_template_sql(
         return Helper.bad_response(error)
 
 
-    template_question =  _find_template(parsed)
+    template_question =  _find_template(raw_content, parsed)
 
     if not template_question:
         error  = f"{trace_id}===================> 没有找到模板问题:\n{parsed}"
@@ -358,6 +358,10 @@ def _load_template_questions():
             meta[key] = parsed[key]
             meta[key]['querys'].sort()
 
+        
+
+    
+
 def _compare_condition(con1, con2)->bool:
     for key in con1:
         if key not in con2:
@@ -365,7 +369,10 @@ def _compare_condition(con1, con2)->bool:
     return True
 
 
-def _find_template(user_question_meta):
+def _find_template(raw_ques:str, user_question_meta):
+    if raw_ques in meta:
+        return raw_ques
+
     querys = user_question_meta["querys"]
     conditions = user_question_meta["conditions"]
 

@@ -169,4 +169,7 @@ def save_2_local(headers, db_results, file_name):
     parts = server_host.split(":")
     host = parts[0]
     download_host =os.getenv("DOWNLOAD_HOST")
-    return f"http://{download_host}/{formatted_date}/{file_name}.csv"
+    if download_host.startswith("http"):
+        return f"{download_host}/{formatted_date}/{file_name}.csv"
+    else:
+        return f"http://{download_host}/{formatted_date}/{file_name}.csv"

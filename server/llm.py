@@ -67,7 +67,7 @@ def query(questions:list, bedrock_client):
 
     native_request = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 2048,
+        "max_tokens": 20480,
         "temperature": 0,
         "top_p":1,
         "top_k":1,
