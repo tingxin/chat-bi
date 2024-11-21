@@ -3,6 +3,9 @@ import csv
 import io
 from datetime import datetime, timedelta
 import os
+import threading
+import time
+
 
 def get(service_name:str, force_llm:bool=False):
 
@@ -128,6 +131,18 @@ def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
         print(f"生成预签名错误：{e}")
         return None
 
+def delete_file(file_path, delay_seconds=120):
+    """删除指定的文件，延迟指定的秒数后执行删除操作"""
+    def _delete():
+        time.sleep(delay_seconds)
+        try:
+            os.remove(file_path)
+            print(f"File {file_path} has been deleted after {delay_seconds} seconds.")
+        except OSError as e:
+            print(f"Error: {file_path} : {e.strerror}")
+
+    delete_thread = threading.Thread(target=_delete)
+    delete_thread.start()
 
 def save_2_local(headers, db_results, file_name):
      # 将数据写入CSV文件
@@ -162,6 +177,8 @@ def save_2_local(headers, db_results, file_name):
         os.makedirs(directory)
     with open(file_path, 'wb') as file:  # 'wb' 模式表示写入二进制数据
         file.write(csv_bytes)
+
+    delete_file(file_path)
 
     server_host = os.getenv("SERVER_HOST","http://127.0.0.1:5020")
     index = server_host.find("://")
