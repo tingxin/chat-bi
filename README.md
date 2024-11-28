@@ -47,16 +47,52 @@
 ```
 pip install -r requirement.txt
 ```
-2. 配置
-进入.env文件，根据注释提供aws ak, sk，数据库信息
-2. 
+2. 项目使用了 Amazon Cognito 用户池进行身份认证登录，请创建Cognito 用户池，并添加访问用户
 
-## 补充信息
-#### 如果在中国区，请手动执行
+3. 配置
+进入.env文件，根据注释提供aws ak, sk，部署宿主机器，数据库信息
+
+### 生成和优化提示词
+1. 请使用如下命令查看相关命令用法
 ```
-git clone -b v1.7.4 --depth 1 https://github.com/facebookresearch/faiss.git deps/faiss
+python prompt_gen.py
 ```
-2. 启动docker
+2. 使用如下命令生成提示词模板
+```
+python prompt_gen.py template --scenario {场景名称} --tables {表名1} {表名2} {表名3}
+```
+上述命令会对传入的表进行提示词自动生成，最终会生成一个 场景名称.xlsx 的提示词模板文件，位于
+```
+/prompt/data/promptdata/{场景名称.xlsx}
+```
+如果这个场景是使用者默认查询最多查询场景，给文件名添加_default后缀
+
+例如：
+```
+python prompt_gen.py template --scenario ecommerce --tables order_detail users goods
+```
+生成的提示词模板位于
+```
+/prompt/data/promptdata/ecommerce.xlsx
+```
+如果这个场景是使用者默认查询最多查询场景，则修改ecommerce.xlsx 为 ecommerce_default.xlsx
+
+3. 你也可以打开该提示词模板文件，根据你对业务的了解进一步的审核和修改. 
+这里有一个使用demo数据生成的提示词模板，你可以下载下来参考
+```
+/assets/orders_default.xlsx
+```
+
+4. 如果你对提示词模板文件进行了内容上的调整和修改，请重新放会/prompt/data/promptdata/ 目录
+
+5. 使用如下命令生成最终的提示词
+```
+python prompt_gen.py template
+```
+上述命令会生成最终的版本的提示词并且上传到配置文件中指定的s3 目录
+
+### 运行ChatBI
+1. 你可以使用提供的Dockerfile分别构建前后端部署在虚拟机或者k8s中，详细步骤不再赘述。这里以部署在虚拟机中举例
 ```
 # build 前端
 docker build -t text2sql_dev .
@@ -69,16 +105,13 @@ docker build -f DockerfileServer -t text2sql_server .
 
 # 启动后端
 docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
-
-
 ```
+使用浏览器打开ip:5017
 
-使用浏览器打开
-ip:5017
+## 补充信息
 
-
-## 配置本地文件下载
-默认情况下，数据文件会上传到s3,提供下载，如果你希望使用服务器做为下载服务，避免使用公网访问s3客户如下配置
+### 配置本地文件下载
+默认情况下，数据文件会上传到s3,使用s3 文件预签名提供数据文件下载，如果你的目标用户环境无法访问公网希望使用服务器做为下载服务，避免使用公网访问，你可以如下
 创建一个downloads文件夹
 ```
 mkdir downloads
@@ -97,4 +130,15 @@ python3 -m http.server 5023
 DOWNLOAD_HOST={文件服务器的公网或内网IP}:端口
 ```
 
+### 配置模型代理服务器
+如何你的网络环境访问大模型不稳定，则需要使用代理
+1. 修改.env配置文件，修改LLM_PROXY_SERVER参数，该参数是你可以访问大模型地区虚拟的IP及分配给代理服务的端口
+2. 运行如下命令启动代理服务
+```
+python3 mainproxy.py
+```
+3.使用更新后的.env配置文件，重新启动chatbi的后的服务
+```
+python3 main.py
+```
 
