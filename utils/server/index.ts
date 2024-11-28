@@ -26,7 +26,6 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { IndexFlatL2 } from 'faiss-node';
 import json2md from 'json2md';
 
 export class BedrockError extends Error {
@@ -757,28 +756,7 @@ const formatDateFields = (objArr: any[]) => {
 };
 
 const getFaissResult = (embedding: number[]) => {
-  // Titan embedding 固定长度1536
-  try {
-    const index = new IndexFlatL2(1536);
-    const fname = process.cwd() + '/faiss.index';
-    // console.log('fname', process.cwd());
-    // Load saved index
-    const index_loaded = IndexFlatL2.read(fname);
-    if (!index_loaded) {
-      return '';
-    }
-    const k_value = Math.min(
-      index_loaded.ntotal(),
-      parseInt(RAG_SEARCH_LENGHT || '1'),
-    );
-    console.log('k_value-----> ', k_value);
-    const embeddingResults = index_loaded.search(embedding, k_value);
-    console.log('embeddingResults-----> ', embeddingResults);
-    return embeddingResults.labels;
-  } catch (error) {
-    console.error('getFaissResult Error-----> ', error);
-    return [];
-  }
+  return []
 };
 
 const getSampleRAG = async (
@@ -829,11 +807,11 @@ const getS3JsonFile = async (fileName: string | undefined) => {
     return [];
   }
   try {
-    const s3Client = new S3Client(AWS_PARAM);
     const getObjectParams = {
       Bucket: BUCKET_NAME,
       Key: fileName,
     };
+    const s3Client = new S3Client(AWS_PARAM);
     const command = new GetObjectCommand(getObjectParams);
     const fileInfo: any = await s3Client.send(command);
     let fileResultStr = '';
@@ -882,40 +860,5 @@ const getRAGSearchStr = async (
 };
 
 export const updateFaissIndex = async () => {
-  try {
-    const sampleData = await getS3JsonFile(RAG_FILE_NAME);
-    if (!sampleData || !Array.isArray(sampleData) || sampleData.length === 0) {
-      return false;
-    }
-
-    const bedrockruntime = new BedrockRuntimeClient(AWS_PARAM);
-    const requestList: any[] = [];
-
-    sampleData.forEach((item) => {
-      const answerCommand = new InvokeModelCommand({
-        body: JSON.stringify({
-          inputText: item.question,
-        }),
-        modelId: 'amazon.titan-embed-text-v1',
-        contentType: 'application/json',
-        accept: '*/*',
-      });
-      requestList.push(bedrockruntime.send(answerCommand));
-    });
-    const embeddingList = await Promise.all(requestList);
-    const index = new IndexFlatL2(1536);
-    const decoder = new TextDecoder('utf-8');
-
-    embeddingList.forEach((emItem) => {
-      const decodedString = decoder.decode(emItem.body);
-      const bodyObj = JSON.parse(decodedString);
-      index.add(bodyObj.embedding);
-    });
-    const fname = 'faiss.index';
-    index.write(fname);
-  } catch (error) {
-    console.log('error', error);
-    return [];
-  }
-  return true;
+  return [];
 };

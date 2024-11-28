@@ -3,18 +3,29 @@ import csv
 import io
 from datetime import datetime, timedelta
 import os
+import threading
+import time
 
-def get(service_name:str):
+
+def get(service_name:str, force_llm:bool=False):
+
+    if service_name == "bedrock-runtime" and not force_llm:
+        proxy_server =  os.getenv("LLM_PROXY_SERVER", "")
+        if proxy_server:
+            print(f"begin use proxy server:{proxy_server}")
+            return {
+                    'proxy_server':proxy_server
+                } 
+    
     is_dev =bool(os.getenv('DEV_MODEL'))
     if service_name == 's3' and is_dev:
         client = boto3.client(
             service_name,
-            region_name = os.getenv('DEFAULT_REGION')
+            region_name = os.getenv('S3_REGION')
         )
-        return client
-           
+        return client 
 
-    if 'ACCESS_KEY' in os.environ and 'SECRET_ACCESS_KEY' in os.environ and len(os.environ['ACCESS_KEY']) == 20:
+    if 'ACCESS_KEY' in os.environ and 'SECRET_ACCESS_KEY' in os.environ and len(os.environ['ACCESS_KEY']) == 20:              
        return boto3.client(
             service_name,
             region_name = os.getenv('DEFAULT_REGION'),
@@ -119,3 +130,63 @@ def upload_csv_to_s3(headers, db_results, bucket_name, file_name):
     except Exception as e:
         print(f"生成预签名错误：{e}")
         return None
+
+def delete_file(file_path, delay_seconds=120):
+    """删除指定的文件，延迟指定的秒数后执行删除操作"""
+    def _delete():
+        time.sleep(delay_seconds)
+        try:
+            os.remove(file_path)
+            print(f"File {file_path} has been deleted after {delay_seconds} seconds.")
+        except OSError as e:
+            print(f"Error: {file_path} : {e.strerror}")
+
+    delete_thread = threading.Thread(target=_delete)
+    delete_thread.start()
+
+def save_2_local(headers, db_results, file_name):
+     # 将数据写入CSV文件
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # 写入列名
+    # 写入行数据
+    writer.writerow(headers)
+    rows = db_results["rows"]
+    for row in rows:
+        items = [str(item) for item in row]
+        writer.writerow(items)
+    
+    # 获取CSV内容
+    csv_content = output.getvalue()
+    output.close()
+
+    # 将CSV内容转换为字节串
+    csv_bytes = csv_content.encode('utf-8-sig')
+
+    now = datetime.now()
+
+    # 格式化日期为 "YYYY-MM-DD" 格式
+    formatted_date = now.strftime("%Y-%m-%d")
+    download =os.getenv("DOWNLOADS")
+    file_path =f"{download}/{formatted_date}/{file_name}.csv"
+
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        # 如果目录不存在，则创建目录
+        os.makedirs(directory)
+    with open(file_path, 'wb') as file:  # 'wb' 模式表示写入二进制数据
+        file.write(csv_bytes)
+
+    delete_file(file_path)
+
+    server_host = os.getenv("SERVER_HOST","http://127.0.0.1:5020")
+    index = server_host.find("://")
+    server_host = server_host[index+3:]
+    parts = server_host.split(":")
+    host = parts[0]
+    download_host =os.getenv("DOWNLOAD_HOST")
+    if download_host.startswith("http"):
+        return f"{download_host}/{formatted_date}/{file_name}.csv"
+    else:
+        return f"http://{download_host}/{formatted_date}/{file_name}.csv"

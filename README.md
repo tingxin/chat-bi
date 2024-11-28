@@ -1,11 +1,43 @@
 
-# 使用Bedrock 构建生成式BI
-*代码原型使用aws rp团队*
+# ChatBI
 ![图示](assets/demo1.jpg)
+快速构建会话是BI工具，帮助非专业人员探索分析数据
+## 优势
+1. 支持MySQL、StarRocks、 Doris, Hive 等多种数据库及数据仓库
+2. 无需提示词工程经验，即可构建生成式BI系统
+
+## 主要功能
+1. 使用自然语言查询数据，并生成图表
+2. 自动生成提示词，并使用Multiple Agent技术对提示词进行优化，提高查询准确性
+3. 支持自定义SQL模板，解决复杂SQL的生成问题
+4. 支持联邦查询功能，可以从多个数据源联合查询，服务端进行合并
+5. 支持代理部署模式，数据查询服务和模型推理服务分离部署
+
+*代码原型使用aws rp团队*
+
+
+## 架构
+
+项目使用Multiple Agent 构建提示词模板，提高查询准确性。提示词模板是对被查询数据的描述，用于让大模型理解数据的含义，从而回应用户的查询
+![提示词优化](assets/chatbi-prompt.drawio.png)
+1. Prompt Engineer Agent 从源库获取涉及的表的元信息和采样数据，经过分析后生成提示词模板
+2. Data Engineer Agent 使用上个步骤产生的提示词模板，和测试问题集合，生成SQL,并执行获取返回的结果
+3. Test Engineer Agent 根据用户提供的测试问题集的信息，和上个步骤返回的数据，评判生成SQL的质量，生成反馈
+4. Prompt Engineer Agent 根据反馈重新生成提示词模板，进入下一轮迭代优化
+5. 最终生成的最优提示词模板被做为实际推理的提示词上下文
+
+项目整体架构如下
+![系统架构](assets/arch.png)
+1. 用户发起请求后，用户问题进行embedding 
 ## 快速体验
 1. 配置环境变量
 进入.env文件，根据注释提供aws ak, sk等信息
 
+
+# 如果在中国区，请手动执行
+```
+git clone -b v1.7.4 --depth 1 https://github.com/facebookresearch/faiss.git deps/faiss
+```
 2. 启动docker
 ```
 # build 前端
@@ -20,121 +52,39 @@ docker build -f DockerfileServer -t text2sql_server .
 # 启动后端
 docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
 
+
 ```
 
 使用浏览器打开
 ip:5017
 
-## 自动化测试
-1. 编写测试脚本，脚本内容为
-你的用户问题，和你期望生成的sql.脚本以excel文件保存在
+
+## 配置本地文件下载
+默认情况下，数据文件会上传到s3,提供下载，如果你希望使用服务器做为下载服务，避免使用公网访问s3客户如下配置
+创建一个downloads文件夹
 ```
-/server/testcases/
-```
-参考
-```
-/server/testcases/sql_testcase1.xlsx
+mkdir downloads
+cd downloads
 ```
 
-2. 执行
+创建一个简单的文件服务器,例如
 ```
-python3 test.py
-```
-3. 请在生成的日志log/chatbi_test.log中查看和分析结果
+python3 -m http.server 端口号
 
-## 自动生成提示词
-prompt_gen.py文件为生成提示词的入口文件
-
-### 第一步，生成提示词模板文件
-命令
-```
-python3 prompt_gen.py -h
-
-提示词生成辅助工具
-
-positional arguments:
-  {template,prompt}  可用命令
-    template         生成提示词模板，供人工review
-    prompt           生成提示词文件，并上传到S3中，执行前请确保已经生成了提示词模板，并人工进行reivw
-
-options:
-  -h, --help         show this help message and exit
-
-```
-生成提示词模板
-```
-python3 prompt_gen.py template -h
-usage: prompt_gen.py template [-h] [--scenario SCENARIO]
-                              [--tables TABLES [TABLES ...]]
-
-options:
-  -h, --help            show this help message and exit
-  --scenario SCENARIO   场景名称
-  --tables TABLES [TABLES ...]
-                        数据表列表，表名称之间用空格隔开
-```
-例如：
-```
-python3 prompt_gen.py template --scenario demo --tables order_detail user goods
+python3 -m http.server 5023
 ```
 
-生成的提示词模板文件是一个excel文件位于
+进入环境变量文件.env，添加环境变量
 ```
-prompt/data/promptdata
-```
-一个BI系统，一般应该有多个场景，每个场景对应一个业务，所以请把最重要的场景做为默认场景场景，请把默认场景生成的模板文件名称添加_default后缀，例如，demo_default.xlsx
-
-### 第二步，请打开生成的提示词模板文件，进行审核，调整和修改
-*建议审核的人应该是对当前场景业务非常数据的业务同事或数据同事，而非技术同事*
-
-### 第三步，生成提示词
-```
-python3 prompt_gen.py prompt
-```
-这一步操作，会生成json格式的提示词文件，位于
-```
-prompt/prompt_conf 文件夹下
-```
-并且会把该文件上传到环境变量中指定的桶
-例如，你配置的
-BUCKET_NAME=tx-text2sql2
-
-EXAMPLE_FILE_NAME=demo/defaultDragonPrompt.json
-PROMPT_FILE_NAME=demo/promptConfig.json
-RAG_FILE_NAME=demo/ragSampleList.json
-则会上传到
-s3://tx-text2sql2/demo/defaultDragonPrompt.json
-
-注意：
-EXAMPLE_FILE_NAME=demo/defaultDragonPrompt.json
-保存的是常见问题的，多用户共享的问题，你可以先手动修改后再调用 python3 prompt_gen.py prompt
-
-### 第四步，重启服务
-如果修改了各个场景的提示词，只需要重启后端
-如果修改了defaultDragonPrompt.json, 则需要重启前端
-
-
-## 自动调优提示词
-*还在开发中*
-基于multiple agent，限定好优化准则，实现，参考
-参考的内容1：https://arxiv.org/abs/2304.11015。 （或者附件1）。主要讲模式链接（Schema Linking）、查询分类与分解（Query Classification and Decomposition）、SQL生成（SQL Generation）和自我修正（Self-Correction）几种提示词方法来增加准确率。
-
-参考内容2：https://arxiv.org/abs/2211.01910。（或者附件2）。主要讲通过大模型，对一个任务生成多候选prompt集合，再根据一些sample来挑选最合适的prompt来提高prompt的效果。
-（https://zhuanlan.zhihu.com/p/672206721）。
-
-### 前置条件，需要你编测试样例
-测试样例参考
-```
-/server/testcases/sql_testcase1.xlsx
+DOWNLOAD_HOST={文件服务器的公网或内网IP}:端口
 ```
 
 
 
-
-
-
-
-
+## 如何配置数据
+1. 进入prompt文件夹
+2. 参考README.md文件配置数据
+3. 重新运行docker 
 
 
 
