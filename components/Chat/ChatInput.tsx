@@ -1,8 +1,6 @@
 import {
   IconArrowDown,
-  IconBolt,
-  IconBrandAmazon,
-  IconBrandGoogle,
+  IconFileUpload,
   IconPlayerStop,
   IconRepeat,
   IconSend,
@@ -63,10 +61,12 @@ export const ChatInput = ({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showPluginSelect, setShowPluginSelect] = useState(true);
   const [plugin, setPlugin] = useState<Plugin | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isFireFox = navigator.userAgent.includes('Firefox');
 
   const promptListRef = useRef<HTMLUListElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredPrompts = prompts.filter((prompt) =>
     prompt.name.toLowerCase().includes(promptInputValue.toLowerCase()),
@@ -88,6 +88,68 @@ export const ChatInput = ({
 
     setContent(value);
     updatePromptListVisibility(value);
+  };
+
+  const handleUploadBtn = () => {
+    // 触发隐藏的文件输入框的点击事件
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      // 检查文件类型
+      const fileType = file.type;
+      const validTypes = [
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/csv',
+      ];
+
+      if (!validTypes.includes(fileType)) {
+        alert('请选择Excel或CSV文件');
+        return;
+      }
+
+      // 检查文件大小
+      const fileSizeInMB = file.size / (1024 * 1024);
+      if (fileSizeInMB > 5) {
+        alert('文件大小不能超过5MB');
+        return;
+      }
+
+      // 文件验证通过,可以进行上传操作
+      console.log('文件已选择,准备上传:', file.name);
+      // 开始上传
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/uploadFile', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('上传成功:', result);
+          alert('文件上传成功');
+          // 上传成功之后 要更新message 触发对话回复逻辑
+          // handleSend
+        } else {
+          throw new Error('上传失败');
+        }
+      } catch (error) {
+        console.error('上传错误:', error);
+        alert('文件上传失败');
+      } finally {
+        setIsUploading(false);
+      }
+    }
   };
 
   const handleSend = () => {
@@ -301,7 +363,6 @@ export const ChatInput = ({
           >
             <IconBrandAmazon size={20} />
           </button> */}
-
           {showPluginSelect && (
             <div className="absolute left-0 bottom-14 rounded bg-white dark:bg-[#343541]">
               <PluginSelect
@@ -324,7 +385,6 @@ export const ChatInput = ({
               />
             </div>
           )}
-
           <textarea
             ref={textareaRef}
             className="m-0 w-full resize-none border-0 bg-transparent p-0 py-2 pr-8 pl-4 text-black dark:bg-transparent dark:text-white md:py-3 md:pl-4" //  pl-10 md:pl-10 IconCss
@@ -351,6 +411,24 @@ export const ChatInput = ({
           />
 
           <button
+            className="absolute right-10 top-2 rounded-sm p-1 text-neutral-800 opacity-60 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-opacity-50 dark:text-neutral-100 dark:hover:text-neutral-200"
+            onClick={handleUploadBtn}
+            disabled={isUploading}
+          >
+            {messageIsStreaming ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-t-2 border-neutral-800 opacity-60 dark:border-neutral-100"></div>
+            ) : (
+              <IconFileUpload size={18} />
+            )}
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+          />
+          <button
             className="absolute right-2 top-2 rounded-sm p-1 text-neutral-800 opacity-60 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-opacity-50 dark:text-neutral-100 dark:hover:text-neutral-200"
             onClick={handleSend}
           >
@@ -360,7 +438,6 @@ export const ChatInput = ({
               <IconSend size={18} />
             )}
           </button>
-
           {showScrollDownButton && (
             <div className="absolute bottom-12 right-0 lg:bottom-0 lg:-right-10">
               <button
@@ -371,7 +448,6 @@ export const ChatInput = ({
               </button>
             </div>
           )}
-
           {showPromptList && filteredPrompts.length > 0 && (
             <div className="absolute bottom-12 w-full">
               <PromptList
@@ -383,7 +459,6 @@ export const ChatInput = ({
               />
             </div>
           )}
-
           {isModalVisible && (
             <VariableModal
               prompt={filteredPrompts[activePromptIndex]}
