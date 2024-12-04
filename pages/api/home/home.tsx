@@ -121,7 +121,7 @@ const components = {
     Header() {
       const { tokens } = useTheme();
       useEffect(() => {
-        moveUser();
+        // moveUser();
         setCognitoConfig();
       }, []);
 
@@ -186,7 +186,7 @@ const Home = ({
   useEffect(() => {
     setCognitoConfig();
     return () => {
-      moveUser();
+      // moveUser();
       setCognitoConfig();
     };
   }, []);
