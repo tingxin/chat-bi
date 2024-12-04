@@ -34,13 +34,22 @@ export default async function handler(
       try {
         // 读取文件内容到内存
         const fileContent = await readFileContent(file);
-
-        // Todo：在这里处理文件内容
-
+        console.log('文件内容:', fileContent.slice(0, 100) + '...'); // 仅打印前100个字符
         // 例如：解析 Excel 或 CSV 文件
 
-        console.log('文件内容:', fileContent.slice(0, 100) + '...'); // 仅打印前100个字符
-
+        // Todo：在这里处理文件内容 比如上传
+        const response = await fetch('url', {
+          method: 'POST',
+          headers: {}, // 如果您需要加一些自定义头
+          body: fileContent, // 文件流
+        });
+        if (!response.ok) {
+          // http状态码非200
+          res.status(500).json({ error: '文件处理失败' });
+          return;
+        }
+        const result = await response.json(); // 如果您返回的是JSON content-type也要是json 这么解析
+        console.log('result.code', result.code); // 假如返回的对象里有个属性叫code
         // 返回成功响应
         res.status(200).json({
           message: '文件上传并处理成功',
