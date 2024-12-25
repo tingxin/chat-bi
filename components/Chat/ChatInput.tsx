@@ -144,7 +144,7 @@ export const ChatInput = ({
           throw new Error('上传失败');
         }
       } catch (error) {
-        console.error('上传错误:', error);
+        console.error(`上传错误:${error}`);
         alert('文件上传失败');
       } finally {
         setIsUploading(false);

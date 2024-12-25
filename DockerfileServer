@@ -5,6 +5,7 @@ COPY ./requirement.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 RUN mkdir server
 RUN mkdir logs
+RUN mkdir downloads
 EXPOSE 5018
 COPY ./server/. /app/server
 COPY ./.env /app

@@ -105,6 +105,9 @@ docker build -f DockerfileServer -t text2sql_server .
 
 # 启动后端
 docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs  --name textdemoserver text2sql_server
+
+
+docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs -v ~/work/chat-bi/downloads:/app/downloads --name textdemoserver text2sql_server
 ```
 使用浏览器打开ip:5017
 

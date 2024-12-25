@@ -17,14 +17,6 @@ conf.load_env(f"{os.getcwd()}/.env")
 conf.load_sql_templates()
 service.init()
 
-
-# 创建一个资源
-class HelloWorld(Resource):
-    def get(self):
-        # 返回一个简单的问候消息
-        return {'message': 'Hello, World!!'}
-
-
 class QueryLLM(Resource):
     def get(self):
         # 从请求参数中获取查询字符串
@@ -46,8 +38,19 @@ class QueryLLM(Resource):
         data = service.get_result(json_data, trace_id,user_id, mtype)
         return data, 200
 
+
+class UploadFile(Resource):
+    def post(self):
+        raw_data = request.get_data()
+        post_data_str = raw_data.decode('utf-8')
+        return {}, 200
+
+            
+
+
 # 将资源添加到API端点
 api.add_resource(QueryLLM, '/queryllm')
+api.add_resource(UploadFile, '/upload')
 
 # 将资源添加到API端点
 api.add_resource(HelloWorld, '/')
