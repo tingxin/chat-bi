@@ -36,16 +36,32 @@ handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
 meta = dict()
+attachment = dict()
 
 def init():
     logger.info("正在加载和分析模板SQL")
     _load_template_questions()
 
-def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
+def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', check_ids:list
+               =None):
     logger.info(f"user:{user_id}===>trace id:{trace_id}===>begin to query data")
 
     bedrock = aws.get('bedrock-runtime')
-    bedrock_result = answer_template_sql(bedrock, msg, trace_id)
+
+    if not check_ids:
+        bedrock_result = answer_template_sql(bedrock, msg, trace_id)
+    else:
+        bedrock_result = {
+            "error":"not support template"
+        }
+        # 阳光电源逻辑特殊处理
+        temp_ids = check_ids[0:2]
+        last_item = msg[-1]
+        temp_id_str = ",".join(temp_ids)
+        temp_id_str_t = f"如下:{temp_id_str}"
+        raw_content = last_item['content'].replace("如附件", temp_id_str_t)
+        msg[-1]['content'] = raw_content
+
     if "error" in bedrock_result:
 
         prompt_content = prompt.get("PROMPT_FILE_NAME")
@@ -63,14 +79,42 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
         }
 
     fmt_sql = sql.format_md(bedrock_result['bedrockSQL'])
-    logger.info(f"user:{user_id}===>trace id:{trace_id}===>get sql {fmt_sql}")
     last_item = msg[-1]
     raw_content = last_item['content']
+
+    if check_ids:
+        # 阳光电源逻辑特殊处理
+        temp_ids = check_ids[0:2]
+        parstr1 = f"({temp_ids[0]}, {temp_ids[1]})"
+        parstr2 = f"('{temp_ids[0]}', '{temp_ids[1]}')"
+        parstr3 = f"(\"{temp_ids[0]}\", \"{temp_ids[1]}\")"
+
+        if fmt_sql.find(parstr1) > 0:
+            acheck_ids = "("+",".join(check_ids) + ")"
+            fmt_sql = fmt_sql.replace(parstr1, acheck_ids)
+            logger.info(acheck_ids)
+            logger.info(fmt_sql)
+        elif fmt_sql.find(parstr2) > 0:
+            check_ids = [f"'{item}'" for item in check_ids]
+            acheck_ids = "("+",".join(check_ids) + ")"
+            fmt_sql = fmt_sql.replace(parstr2, acheck_ids)
+            logger.info(acheck_ids)
+            logger.info(fmt_sql)
+        elif fmt_sql.find(parstr3) > 0:
+            check_ids = [f"\"{item}\"" for item in check_ids]
+            acheck_ids = "("+",".join(check_ids) + ")"
+            fmt_sql = fmt_sql.replace(parstr3, acheck_ids)
+            logger.info(acheck_ids)
+            logger.info(fmt_sql)
+
+    logger.info(f"user:{user_id}===>trace id:{trace_id}===>get sql {fmt_sql}")
+        
+        
 
     max_row_return = int(os.getenv("MAX_ROW_COUNT_RETURN", "50"))
 
     db_infos = conf.get_mysql_conf_by_question(raw_content)
-    
+
 
     columns = bedrock_result['bedrockColumn']
     column_types = bedrock_result['column_type']
@@ -123,13 +167,16 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal'):
         if 'content' in result:
             result['content'] =result['content'] +many_msg
         else:
-             result['content'] = many_msg
+            result['content'] = many_msg
 
     else:
         result['extra'] = ""
         
     logger.info(result)
     logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data")
+    
+    if user_id in attachment:
+        del attachment[user_id]
     return result
 
 def answer(
@@ -399,6 +446,14 @@ def _find_template(raw_ques:str, user_question_meta):
     return ""
 
         
+def set_cache(user_id, data):
+    attachment[user_id] = data
+
+def get_attachment(user_id)->str:
+    if user_id in attachment:
+        return attachment[user_id]
+    return ""
+
 
 
 

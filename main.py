@@ -35,6 +35,16 @@ class QueryLLM(Resource):
         mtype = request.args.get('mtype', '')
         trace_id = request.headers.get('X-Trace-Id')
         user_id = request.headers.get('X-User-Id')
+
+        # 阳光电源特有场景，要下载大量数据
+        attachments = service.get_attachment(user_id)
+        if attachments:
+            check_ids = attachments.split("\n")
+            check_ids = [item.strip() for item in check_ids if item!='']
+            if check_ids:
+                data = service.get_result(json_data, trace_id,user_id, mtype, check_ids)
+                return data, 200
+            
         data = service.get_result(json_data, trace_id,user_id, mtype)
         return data, 200
 
@@ -43,17 +53,17 @@ class UploadFile(Resource):
     def post(self):
         raw_data = request.get_data()
         post_data_str = raw_data.decode('utf-8')
+        user_id = request.headers.get('X-User-Id')
+        if user_id:
+            user_id = "tingxin"
+            service.set_cache(user_id, post_data_str)
         return {}, 200
 
             
-
-
 # 将资源添加到API端点
 api.add_resource(QueryLLM, '/queryllm')
 api.add_resource(UploadFile, '/upload')
 
-# 将资源添加到API端点
-api.add_resource(HelloWorld, '/')
 
 
 if __name__ == '__main__':
