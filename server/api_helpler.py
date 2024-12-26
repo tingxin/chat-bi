@@ -115,7 +115,7 @@ class Helper:
     
     @staticmethod
     def query_db(db_info:dict, fmt_sql:str, user_id:str, trace_id:str):
-        logger.info(f"user:{user_id}===>trace id:{trace_id}===>query {db_info['desc']} data")
+        logger.info(f"|user:{user_id}|trace id:{trace_id}|query {db_info['desc']} data")
         conn = None
         try:
             conn = mysql.get_conn(db_info['host'], db_info['port'], db_info['user'], db_info['pwd'], db_info['db'])
@@ -137,7 +137,6 @@ class Helper:
 
     @staticmethod
     def query_db_async(db_info:dict, fmt_sql:str, result_queue:Queue):
-        logger.info(f"=======================>正在查询{db_info['desc']}的数据")
         conn = None
         try:
             conn = mysql.get_conn(db_info['host'], db_info['port'], db_info['user'], db_info['pwd'], db_info['db'])
@@ -148,7 +147,7 @@ class Helper:
             }
             result_queue.put(r)
         except Exception as ex:
-            logger.info(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
+            logger.debug(f"=====================>查询数据出现异常{fmt_sql}：\n{ex}")
             r = {
                 "row_count":0,
                 "error":ex

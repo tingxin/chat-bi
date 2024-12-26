@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # 创建一个handler，用于写入日志文件
 handler = RotatingFileHandler('logs/chatbi.log', maxBytes=100000, backupCount=10)
+formatter = logging.Formatter('%(asctime)s', datefmt='%Y-%m-%d %H:%M:%S')
+handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
@@ -39,12 +41,12 @@ meta = dict()
 attachment = dict()
 
 def init():
-    logger.info("正在加载和分析模板SQL")
+    logger.debug("正在加载和分析模板SQL")
     _load_template_questions()
 
 def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', check_ids:list
                =None):
-    logger.info(f"user:{user_id}===>trace id:{trace_id}===>begin to query data")
+    logger.info(f"|{user_id}|{trace_id}|begin to query data")
 
     bedrock = aws.get('bedrock-runtime')
 
@@ -69,7 +71,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
         bedrock_result =  answer(bedrock, msg, prompt_content, trace_id, is_hard)
 
     if "error" in bedrock_result:
-        logger.info(f"user:{user_id}===>trace id:{trace_id}===>failed to query data")
+        logger.info(f"|{user_id}|{trace_id}|failed to query data")
         return  {
             "content":bedrock_result["error"],
             "mdData":"",
@@ -92,22 +94,16 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
         if fmt_sql.find(parstr1) > 0:
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr1, acheck_ids)
-            logger.info(acheck_ids)
-            logger.info(fmt_sql)
         elif fmt_sql.find(parstr2) > 0:
             check_ids = [f"'{item}'" for item in check_ids]
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr2, acheck_ids)
-            logger.info(acheck_ids)
-            logger.info(fmt_sql)
         elif fmt_sql.find(parstr3) > 0:
             check_ids = [f"\"{item}\"" for item in check_ids]
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr3, acheck_ids)
-            logger.info(acheck_ids)
-            logger.info(fmt_sql)
 
-    logger.info(f"user:{user_id}===>trace id:{trace_id}===>get sql {fmt_sql}")
+    logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
         
         
 
@@ -172,8 +168,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
     else:
         result['extra'] = ""
         
-    logger.info(result)
-    logger.info(f"user:{user_id}===>trace id:{trace_id}===>success to query data")
+    logger.info(f"|{user_id}|{trace_id}|success to query data")
     
     if user_id in attachment:
         del attachment[user_id]
@@ -198,7 +193,7 @@ def answer(
         "role":"user",
         "content": scenario_str
     })
-    logger.info("begin select scenario")
+    logger.debug("begin select scenario")
     scenario = llm.query(questions,bedrock_client=bedrock)
     
 
@@ -206,15 +201,15 @@ def answer(
         # 如果有默认场景就尝试使用默认场景
         if 'DefaulteScenario' in promptConfig["Overall"]:
             error = f"{trace_id}===============>没有找到合适的场景: {scenario}，尝试使用默认场景查询{promptConfig['Overall']['DefaulteScenario']}"
-            logger.info(error)
+            logger.debug(error)
             scenario =promptConfig['Overall']['DefaulteScenario']
         else:
             error = f"{trace_id}===============>failed to find scenario in prompt config file: {scenario}"
-            logger.info(error)
+            logger.debug(error)
             return Helper.bad_response(error=error)
         
 
-    logger.info(f"{trace_id}===============>{scenario} is selected")
+    logger.debug(f"{trace_id}===============>{scenario} is selected")
                
 
     question_str = Helper.build_question_msg(raw_content,scenario,promptConfig,is_hard_mode, rag_str)
@@ -228,13 +223,13 @@ def answer(
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error = f"{trace_id}===================> 返回的结果不是json\n{result}"
-        logger.info(error)
+        logger.debug(error)
         return Helper.bad_response(error=error)
 
     if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
 
         error = f"{trace_id}===================> 返回的结果没有生成SQL"
-        logger.info(error)
+        logger.debug(error)
         return Helper.bad_response(error=error)
 
     if 'columnList' in parsed and isinstance(parsed["columnList"], list):
@@ -288,7 +283,7 @@ def answer_template_sql(
         parsed = json.loads(result)
     except json.JSONDecodeError as ex:
         error  = f"{trace_id}===================> 没有找到模板问题,原因是:\n{result}\n{ex}"
-        logger.info(error)
+        logger.debug(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
 
@@ -297,11 +292,11 @@ def answer_template_sql(
 
     if not template_question:
         error  = f"{trace_id}===================> 没有找到模板问题:\n{parsed}"
-        logger.info(error)
+        logger.debug(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
 
-    logger.info(f"{trace_id}===================> 找到模板问题\n{parsed}")
+    logger.debug(f"{trace_id}===================> 找到模板问题\n{parsed}")
     params = parsed["conditions"].values()
     new_params = list()
     for param in params:
@@ -316,7 +311,7 @@ def answer_template_sql(
     template_sql = prompt.template_sql(template_question)
     if template_sql == "":
         error  = f"{trace_id}===================> 模板SQL为空\n{template_question}"
-        logger.info(error)
+        logger.debug(error)
         # 如果解析失败，返回False
         return Helper.bad_response(error)
     
@@ -335,13 +330,13 @@ def answer_template_sql(
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error  = f"{trace_id}===================> 没有找到模板sql列信息\n{result}"
-        logger.info(error)
+        logger.debug(error)
         return Helper.bad_response(error)
 
     columns = parsed["columns"]
     columns_ype = parsed["columns_type"]
     info  = f"{trace_id}===================> 返回的模板SQL为:\n{fmt_sql}"
-    logger.info(info)
+    logger.debug(info)
     result_j = {
       "bedrockSQL": fmt_sql,
       "queryTableName": "template",
@@ -360,10 +355,10 @@ def retry_when_sql_error(user_id:str, trace_id:str, msg:list,fmtsql:str, raw_db_
         parsed = json.loads(result)
     except json.JSONDecodeError:
         error = f"{trace_id}===================> 返回的结果不是json\n{result}"
-        logger.info(error)
+        logger.debug(error)
 
     if  "finalSQL" not in parsed and  (parsed['finalSQL'] =="" or parsed['finalSQL'].find("ERROR: You can only read data.") >= 0):
-        error = f"{trace_id}===================> 返回的结果没有生成SQL"
+        error = f"|user_id:{user_id}|trace_id:{trace_id}|返回的结果没有生成SQL"
         logger.error(error)
         return {
             "row_count":0,
@@ -394,7 +389,7 @@ def _load_template_questions():
             logger.error(f"分析模板问题出现错误:{ex}")
             return None
 
-        logger.info(parsed)
+        logger.debug(parsed)
         # templates = conf.get_sql_templates()
         # for key in parsed:
         #     params1 = templates[key]['params']
@@ -432,13 +427,13 @@ def _find_template(raw_ques:str, user_question_meta):
             continue
 
         if not _compare_condition(conditions, tp['conditions']):
-            logger.info("查询条件不同")
+            logger.debug("查询条件不同")
             continue
         
         
         querys.sort()
         if querys != tp['querys']:
-            logger.info("查询内容不同")
+            logger.debug("查询内容不同")
             continue
 
         return key
