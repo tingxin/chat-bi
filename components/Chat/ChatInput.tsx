@@ -50,6 +50,7 @@ export const ChatInput = ({
     state: { selectedConversation, messageIsStreaming, prompts },
 
     dispatch: homeDispatch,
+    user,
   } = useContext(HomeContext);
 
   const [content, setContent] = useState<string>();
@@ -99,7 +100,6 @@ export const ChatInput = ({
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-
     if (file) {
       // 检查文件类型
       const fileType = file.type;
@@ -127,27 +127,31 @@ export const ChatInput = ({
       setIsUploading(true);
       const formData = new FormData();
       formData.append('file', file);
-
       try {
-        const response = await fetch('/api/uploadFile', {
-          method: 'POST',
-          body: formData,
-        });
+        const response = await fetch(
+          '/api/uploadFile?userId=' + encodeURIComponent(user.username),
+          {
+            method: 'POST',
+            body: formData,
+          },
+        );
 
         if (response.ok) {
           const result = await response.json();
           console.log('上传成功:', result);
           alert('文件上传成功');
-          // 上传成功之后 要更新message 触发对话回复逻辑
-          // handleSend
+          // Todo: 上传成功之后 要更新message 触发对话回复逻辑
+          // handleSend();
         } else {
           throw new Error('上传失败');
         }
       } catch (error) {
-        console.error(`上传错误:${error}`);
         alert('文件上传失败');
       } finally {
+        console.log('IsUploading');
         setIsUploading(false);
+        // 重置 input 的 value
+        event.target.value = '';
       }
     }
   };

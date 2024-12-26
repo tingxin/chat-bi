@@ -4,8 +4,8 @@ import { IncomingForm } from 'formidable';
 import { createReadStream } from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
+import { v4 as uuidv4 } from 'uuid';
 import { SERVER_HOST } from '@/utils/app/const';
-
 
 export const config = {
   api: {
@@ -34,8 +34,12 @@ export default async function handler(
       if (!file) {
         return res.status(400).json({ error: '没有文件被上传' });
       }
+      if (!req.query || !req.query.userId) {
+        return res.status(400).json({ error: 'No user' });
+      }
 
       try {
+        const requestId = uuidv4();
         // 读取文件内容到内存
         const fileContent = await readFileContent(file[0]);
         console.log('文件内容:', fileContent.slice(0, 100) + '...'); // 仅打印前100个字符
@@ -44,7 +48,11 @@ export default async function handler(
         // Todo：在这里处理文件内容 比如上传
         const response = await fetch(apiurl, {
           method: 'POST',
-          headers: {}, // 如果您需要加一些自定义头
+          headers: {
+            'X-Trace-Id': requestId,
+            'X-User-Id': req.query.userId, // 编码之后的 解码方法 decodeURIComponent(req.query.userId)
+            // 如果您需要加一些自定义头
+          } as any,
           body: fileContent, // 文件流
         });
         if (!response.ok) {
