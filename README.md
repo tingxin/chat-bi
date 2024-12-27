@@ -118,14 +118,15 @@ docker run -p 5018:80 -v ~/work/chat-bi/logs:/app/logs -v ~/work/chat-bi/downloa
 创建一个downloads文件夹
 ```
 mkdir downloads
+```
+
+创建一个简单的文件服务器
+把代码目录下simple_file_server.py 文件复制到你的downloads文件夹下并启动（使用了5011端口，如果要修改，进入代码文件修改）
+```
 cd downloads
-```
 
-创建一个简单的文件服务器,例如
-```
-python3 -m http.server 端口号
+python3 simple_file_server.py 
 
-python3 -m http.server 5023
 ```
 
 进入环境变量文件.env，添加环境变量
