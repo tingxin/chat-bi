@@ -109,6 +109,9 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
             check_ids = [f"\"{item}\"" for item in check_ids]
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr3, acheck_ids)
+        else:
+            index = fmt_sql.find(parstr2)
+            logger.info(f"|{user_id}|{trace_id}|no match attachments {index}")
 
     logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
         
