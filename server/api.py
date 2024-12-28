@@ -85,20 +85,13 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
     raw_content = last_item['content']
 
     if check_ids:
-        logger.info(check_ids)
-        logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
-
         # 阳光电源逻辑特殊处理
         temp_ids = check_ids[0:2]
         parstr1 = f"({temp_ids[0]}, {temp_ids[1]})"
         parstr2 = f"('{temp_ids[0]}', '{temp_ids[1]}')"
         parstr22 = f"(\'{temp_ids[0]}\', \'{temp_ids[1]}\')"
         parstr3 = f"(\"{temp_ids[0]}\", \"{temp_ids[1]}\")"
-        logger.info(parstr1)
-        logger.info(parstr2)
-        logger.info(parstr3)
         
-
         if fmt_sql.find(parstr1) > 0:
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr1, acheck_ids)
@@ -115,10 +108,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr3, acheck_ids)
         else:
-            index = fmt_sql.find(parstr2)
-            logger.info(f"|{user_id}|{trace_id}|no match attachments {index}")
-            index = fmt_sql.find(parstr22)
-            logger.info(f"|{user_id}|{trace_id}|no match attachments {index}")
+            logger.info(f"|{user_id}|{trace_id}|no match attachments")
 
     logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
         

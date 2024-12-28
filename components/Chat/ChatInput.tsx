@@ -104,13 +104,12 @@ export const ChatInput = ({
       // 检查文件类型
       const fileType = file.type;
       const validTypes = [
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
         'text/csv',
       ];
 
       if (!validTypes.includes(fileType)) {
-        alert('请选择Excel或CSV文件');
+        alert('请选择Text或CSV文件');
         return;
       }
 
@@ -429,7 +428,7 @@ export const ChatInput = ({
             type="file"
             ref={fileInputRef}
             style={{ display: 'none' }}
-            accept=".xlsx,.xls,.csv"
+            accept="text,.txt,.csv"
             onChange={handleFileChange}
           />
           <button
