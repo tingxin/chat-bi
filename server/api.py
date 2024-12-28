@@ -92,6 +92,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
         temp_ids = check_ids[0:2]
         parstr1 = f"({temp_ids[0]}, {temp_ids[1]})"
         parstr2 = f"('{temp_ids[0]}', '{temp_ids[1]}')"
+        parstr22 = f"(\'{temp_ids[0]}\', \'{temp_ids[1]}\')"
         parstr3 = f"(\"{temp_ids[0]}\", \"{temp_ids[1]}\")"
         logger.info(parstr1)
         logger.info(parstr2)
@@ -105,12 +106,18 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
             check_ids = [f"'{item}'" for item in check_ids]
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr2, acheck_ids)
+        elif fmt_sql.find(parstr22) > 0:
+            check_ids = [f"'{item}'" for item in check_ids]
+            acheck_ids = "("+",".join(check_ids) + ")"
+            fmt_sql = fmt_sql.replace(parstr22, acheck_ids)
         elif fmt_sql.find(parstr3) > 0:
             check_ids = [f"\"{item}\"" for item in check_ids]
             acheck_ids = "("+",".join(check_ids) + ")"
             fmt_sql = fmt_sql.replace(parstr3, acheck_ids)
         else:
             index = fmt_sql.find(parstr2)
+            logger.info(f"|{user_id}|{trace_id}|no match attachments {index}")
+            index = fmt_sql.find(parstr22)
             logger.info(f"|{user_id}|{trace_id}|no match attachments {index}")
 
     logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
