@@ -85,6 +85,9 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
     raw_content = last_item['content']
 
     if check_ids:
+        logger.info(check_ids)
+        logger.info(f"|{user_id}|{trace_id}|get sql {fmt_sql}")
+
         # 阳光电源逻辑特殊处理
         temp_ids = check_ids[0:2]
         parstr1 = f"({temp_ids[0]}, {temp_ids[1]})"
@@ -93,6 +96,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
         logger.info(parstr1)
         logger.info(parstr2)
         logger.info(parstr3)
+        
 
         if fmt_sql.find(parstr1) > 0:
             acheck_ids = "("+",".join(check_ids) + ")"
