@@ -129,6 +129,7 @@ def get_result(msg:list,trace_id:str, user_id:str='', mode_type: str ='normal', 
         db_results = Helper.merge_data(db_results, columns, column_types)
 
     if "error" in db_results:
+        logger.error(f"|{user_id}|{trace_id}|{db_results['error']}")
         db_results = retry_when_sql_error(user_id, trace_id,msg,fmt_sql, db_results, db_infos, bedrock)
         fmt_sql = db_results['finalSQL']
 
