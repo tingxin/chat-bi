@@ -53,8 +53,6 @@ api.add_resource(QueryLLM, '/queryllm')
 api.add_resource(UploadFile, '/upload')
 
 # 将资源添加到API端点
-api.add_resource(HelloWorld, '/')
-
 
 if __name__ == '__main__':
     server_host = os.getenv("SERVER_HOST","http://127.0.0.1:5020")
